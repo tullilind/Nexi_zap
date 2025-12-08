@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>NEXI CRM - Blue Interface</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+    
+    <script src="https://unpkg.com/picmo@latest/dist/umd/index.js"></script>
+    <script src="https://unpkg.com/@picmo/popup-picker@latest/dist/umd/index.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#2563eb", // AZUL PRINCIPAL
+                        'primary-dark': "#1d4ed8",
+                        secondary: "#f1f5f9",
+                        incoming: "#ffffff",
+                        outgoing: "#dbeafe", // Azul claro para mensagens enviadas
+                        "chat-bg": "#f0f4f8", // Fundo levemente azulado
+                        badge: "#ef4444", // Vermelho para notificações (destaque)
+                        danger: "#ef4444",
+                    },
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif']
+                    },
+                    boxShadow: { 
+                        'message': '0 1px 2px rgba(0,0,0,0.1)',
+                        'menu': '0 4px 20px rgba(0,0,0,0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #cbd5e1; height: 100vh; overflow: hidden; }
+        
+        /* Fundo do Chat */
+        .chat-background {
+            background-color: #eff6ff; /* Azul muito claro */
+            background-image: radial-gradient(#bfdbfe 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.6;
+        }
+
+        /* Scrollbars */
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #64748b; }
+
+        /* Animações */
+        .msg-enter { animation: slideIn 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Abas */
+        .tab-btn { color: #64748b; border-bottom: 2px solid transparent; }
+        .tab-btn.active { color: #2563eb; border-bottom: 2px solid #2563eb; background-color: #eff6ff; }
+
+        /* Painel Info */
+        .info-panel { width: 0; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; border-left: 1px solid #e2e8f0; background: white; }
+        .info-panel.open { width: 380px; }
+
+        /* Menu de Mensagem (Dropdown) */
+        .msg-dropdown { display: none; position: absolute; top: 25px; right: 10px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 50; min-width: 140px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .msg-dropdown button { text-align: left; width: 100%; padding: 10px 12px; font-size: 13px; color: #4b5563; display: flex; align-items: center; gap: 8px; }
+        .msg-dropdown button:hover { background-color: #f1f5f9; color: #2563eb; }
+        .group:hover .msg-dropdown-btn { opacity: 1; }
+
+        /* Slash Menu */
+        .slash-menu { display: none; position: absolute; bottom: 80px; left: 20px; width: 350px; max-height: 300px; background: white; border-radius: 12px; box-shadow: 0 -10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; z-index: 60; overflow-y: auto; }
+        .slash-menu.active { display: block; }
+
+        /* Checkbox Grupo */
+        .check-group:checked + div { background-color: #eff6ff; border-color: #2563eb; }
+        .check-group:checked + div .check-icon { display: flex; }
+
+        /* Correção Emoji Picker */
+        .picmo__popupContainer { z-index: 9999 !important; }
+        
+        /* Tag Categoria */
+        .cat-tag { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    </style>
+</head>
+<body class="flex flex-col text-slate-800">
+
+    <div class="fixed top-0 w-full h-32 bg-primary z-0"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
+
+    <div class="relative z-10 container mx-auto h-full py-0 md:py-4 px-0 md:px-4 max-w-[1920px]">
+        <div class="bg-white md:rounded-xl shadow-2xl flex h-full overflow-hidden border border-slate-200">
+            
+            <div class="w-full md:w-[400px] lg:w-[420px] bg-white border-r border-slate-200 flex flex-col z-20" id="sidebar-panel">
+                <div class="h-16 bg-slate-50 flex items-center justify-between px-4 border-b border-slate-200 shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border border-blue-200 cursor-pointer shadow-sm">
+                            <img id="user-avatar-img" class="w-full h-full object-cover hidden">
+                            <span id="user-initials" class="font-bold text-primary text-sm">EU</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1 text-slate-600">
+                        <button onclick="abrirModalCategorias()" class="p-2 hover:bg-blue-50 hover:text-primary rounded-full transition" title="Categorias"><span class="material-symbols-rounded">label</span></button>
+                        <button onclick="abrirModalRespostas()" class="p-2 hover:bg-blue-50 hover:text-primary rounded-full transition" title="Respostas Rápidas"><span class="material-symbols-rounded">bolt</span></button>
+                        <button onclick="window.location.href='dashboard.html'" class="p-2 hover:bg-blue-50 hover:text-primary rounded-full transition" title="Dashboard"><span class="material-symbols-rounded">dashboard</span></button>
+                    </div>
+                </div>
+
+                <div class="flex bg-white border-b border-slate-100">
+                    <button onclick="mudarAba('chats')" id="tab-chats" class="tab-btn active flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition">Conversas</button>
+                    <button onclick="mudarAba('grupos')" id="tab-grupos" class="tab-btn flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition">Grupos</button>
+                </div>
+
+                <div class="p-3 bg-white border-b border-slate-100 space-y-3">
+                    <div class="bg-slate-100 flex items-center rounded-lg px-3 py-2 transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-sm">
+                        <span class="material-symbols-rounded text-slate-400 text-sm">search</span>
+                        <input type="text" id="contact-filter" placeholder="Pesquisar..." class="bg-transparent border-none focus:ring-0 text-sm w-full ml-2 text-slate-700 placeholder-slate-400">
+                    </div>
+                    
+                    <div class="flex gap-2 overflow-x-auto custom-scroll pb-1" id="category-filter-list">
+                        <button onclick="filtrarPorCategoria('todos')" class="active px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-white transition hover:shadow-md">Tudo</button>
+                    </div>
+                </div>
+
+                <div id="contact-list" class="flex-1 overflow-y-auto custom-scroll bg-white relative"></div>
+                <div id="groups-list" class="flex-1 overflow-y-auto custom-scroll bg-white hidden"></div>
+            </div>
+
+            <div class="flex-1 flex flex-col bg-[#f0f4f8] relative hidden md:flex min-w-0" id="chat-panel">
+                <div class="absolute inset-0 chat-background pointer-events-none"></div>
+
+                <div id="empty-state" class="absolute inset-0 z-20 bg-slate-50 flex flex-col items-center justify-center border-b-[6px] border-primary">
+                    <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6 text-primary animate-pulse">
+                        <span class="material-symbols-rounded text-5xl">forum</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-800">NEXI Web</h1>
+                    <p class="text-slate-500 text-sm mt-2">Escolha uma conversa para iniciar o atendimento.</p>
+                </div>
+
+                <header id="chat-header" class="h-16 bg-white/90 backdrop-blur-md px-4 py-2 flex items-center justify-between border-b border-slate-200 z-10 relative hidden cursor-pointer shadow-sm" onclick="toggleInfoPanel()">
+                    <div class="flex items-center gap-3 flex-1 overflow-hidden">
+                        <button class="md:hidden mr-1 text-slate-600" onclick="fecharChatMobile(); event.stopPropagation();"><span class="material-symbols-rounded">arrow_back</span></button>
+                        <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-slate-200">
+                            <img id="header-avatar" class="w-full h-full object-cover hidden">
+                            <span class="material-symbols-rounded text-2xl text-slate-400" id="header-default-icon">person</span>
+                        </div>
+                        <div class="flex flex-col justify-center">
+                            <span id="header-name" class="font-bold text-slate-800 text-sm truncate">Nome</span>
+                            <span id="header-number" class="text-xs text-slate-500 font-mono"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="event.stopPropagation(); toggleSearchChat()" class="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition" title="Buscar"><span class="material-symbols-rounded">search</span></button>
+                        <button onclick="event.stopPropagation(); toggleFixarAtual()" class="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition" title="Fixar Conversa"><span class="material-symbols-rounded" id="btn-pin-icon">keep</span></button>
+                        <button onclick="event.stopPropagation(); toggleInfoPanel()" class="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition" title="Dados do Contato"><span class="material-symbols-rounded">dock_to_left</span></button>
+                    </div>
+                </header>
+
+                <div id="search-in-chat-bar" class="hidden bg-white p-2 border-b border-slate-200 flex items-center gap-2 z-10 shadow-sm">
+                    <input type="text" id="chat-search-input" placeholder="Buscar nesta conversa..." class="flex-1 bg-slate-100 border-none rounded-lg text-sm px-3 py-2 focus:ring-1 focus:ring-primary">
+                    <button onclick="toggleSearchChat()" class="text-slate-400 hover:text-red-500 p-1"><span class="material-symbols-rounded">close</span></button>
+                </div>
+
+                <div id="messages-container" class="flex-1 overflow-y-auto custom-scroll p-4 md:px-12 space-y-2 relative z-10 hidden scroll-smooth pb-6"></div>
+
+                <div id="blocked-warning" class="hidden bg-slate-100 p-4 text-center text-sm text-slate-500 border-t border-slate-200 z-10 font-medium">
+                    🚫 Você bloqueou este contato.
+                </div>
+
+                <footer id="input-area" class="bg-white px-4 py-2 z-10 flex items-end gap-2 hidden border-t border-slate-200 relative">
+                    
+                    <div id="quick-response-menu" class="slash-menu custom-scroll">
+                        <div class="bg-slate-50 p-2 border-b flex justify-between items-center sticky top-0 z-20">
+                            <span class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><span class="material-symbols-rounded text-sm text-primary">bolt</span> Rápidas</span>
+                            <button onclick="document.getElementById('quick-response-menu').classList.remove('active')" class="text-slate-400 hover:text-red-500"><span class="material-symbols-rounded text-sm">close</span></button>
+                        </div>
+                        <ul id="quick-response-list" class="divide-y divide-slate-100"></ul>
+                    </div>
+
+                    <div class="flex items-center gap-1 pb-2 text-slate-500">
+                        <button id="emoji-btn" class="p-2 hover:bg-slate-100 rounded-full transition hover:text-primary"><span class="material-symbols-rounded text-2xl">sentiment_satisfied</span></button>
+                        <div class="relative">
+                            <button onclick="document.getElementById('file-upload').click()" class="p-2 hover:bg-slate-100 rounded-full transition hover:text-primary"><span class="material-symbols-rounded text-2xl transform rotate-45">attach_file</span></button>
+                            <input type="file" id="file-upload" class="hidden" onchange="handleFileSelect(this)">
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-slate-100 rounded-xl border border-transparent focus-within:border-primary/30 focus-within:bg-white shadow-sm flex flex-col min-h-[42px] max-h-[140px] mb-1 transition-all">
+                        <div id="file-preview" class="hidden px-4 py-2 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-lg">
+                            <div class="flex items-center gap-2 text-xs font-bold text-primary truncate"><span class="material-symbols-rounded">attachment</span><span id="file-name-preview" class="truncate max-w-[200px] text-slate-700">arquivo</span></div>
+                            <button onclick="limparAnexo()" class="text-red-500 hover:bg-red-50 rounded-full p-1"><span class="material-symbols-rounded text-base">close</span></button>
+                        </div>
+                        <textarea id="message-input" rows="1" class="w-full bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-400 px-4 py-2.5 resize-none custom-scroll text-[15px]" placeholder="Digite uma mensagem... (/ para atalhos)" onkeydown="checkEnter(event)"></textarea>
+                    </div>
+
+                    <div class="pb-1">
+                        <button onclick="enviarMensagem()" id="btn-send" class="text-slate-400 hover:text-primary p-2 transition disabled:opacity-50"><span class="material-symbols-rounded text-3xl">send</span></button>
+                    </div>
+                </footer>
+            </div>
+
+            <div id="info-panel" class="info-panel flex flex-col z-30 shadow-xl relative h-full">
+                <div class="h-16 flex items-center gap-3 px-4 border-b border-slate-200 bg-slate-50 shrink-0">
+                    <button onclick="fecharPainelInfo()" class="text-slate-600 hover:bg-slate-200 p-2 rounded-full transition"><span class="material-symbols-rounded">close</span></button>
+                    <span class="font-bold text-slate-700">Dados do Contato</span>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto custom-scroll p-6 bg-white">
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="w-36 h-36 rounded-full overflow-hidden mb-3 border-4 border-slate-100 cursor-pointer group relative bg-slate-200 flex items-center justify-center shadow-lg">
+                            <img id="info-avatar" class="w-full h-full object-cover hidden" onclick="verFotoFull(this.src)">
+                            <span class="material-symbols-rounded text-6xl text-slate-400" id="info-default-icon">person</span>
+                        </div>
+                        <h2 id="info-name" class="text-xl font-bold text-slate-800 text-center leading-tight">Nome</h2>
+                        <p id="info-number" class="text-sm text-slate-500 font-mono mt-1"></p>
+                    </div>
+
+                    <div class="space-y-5">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+                            <label class="text-xs font-bold text-primary uppercase mb-2 block flex items-center gap-1"><span class="material-symbols-rounded text-sm">label</span> Categoria</label>
+                            <select id="info-category" onchange="atualizarCategoriaContato()" class="w-full text-sm border-slate-200 rounded-lg p-2.5 bg-white focus:ring-primary focus:border-primary cursor-pointer"></select>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+                            <label class="text-xs font-bold text-primary uppercase mb-2 block flex items-center gap-1"><span class="material-symbols-rounded text-sm">edit_note</span> Notas</label>
+                            <textarea id="info-notes" rows="6" class="w-full text-sm border-slate-200 rounded-lg bg-white p-3 resize-none focus:ring-primary focus:border-primary" placeholder="Adicione observações..."></textarea>
+                            <div class="text-right mt-3"><button onclick="salvarNotas()" class="text-xs bg-primary text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Salvar Notas</button></div>
+                        </div>
+
+                        <button onclick="alternarBloqueio()" id="btn-block" class="w-full py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center gap-2 border border-red-100 transition shadow-sm">
+                            <span class="material-symbols-rounded">block</span> <span id="txt-block">Bloquear Contato</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="modal-categories" class="fixed inset-0 bg-slate-900/60 z-[90] hidden flex items-center justify-center p-4"><div class="bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden"><div class="bg-slate-50 px-4 py-3 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">Categorias</h3><button onclick="fecharModalCategorias()"><span class="material-symbols-rounded">close</span></button></div><div class="p-4"><form onsubmit="event.preventDefault(); criarCategoria();" class="flex gap-2 mb-4"><input type="text" id="cat-name" placeholder="Nova..." class="flex-1 rounded-lg border-slate-300 text-sm p-2"><input type="color" id="cat-color" class="h-9 w-9 p-0 border rounded cursor-pointer" value="#2563eb"><button type="submit" class="bg-primary text-white px-3 rounded-lg text-sm font-bold">Add</button></form><div class="max-h-60 overflow-y-auto custom-scroll space-y-1" id="categories-list-manage"></div></div></div></div>
+
+    <div id="modal-quick-responses" class="fixed inset-0 bg-slate-900/60 z-[90] hidden flex items-center justify-center p-4"><div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden"><div class="bg-slate-50 px-4 py-3 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">Respostas Rápidas</h3><button onclick="fecharModalRespostas()"><span class="material-symbols-rounded">close</span></button></div><div class="p-4"><form onsubmit="event.preventDefault(); criarRespostaRapida();" class="mb-4 space-y-2 bg-blue-50 p-3 rounded-lg border border-blue-100"><input type="text" id="qr-titulo" placeholder="/atalho" class="w-full rounded border-slate-300 text-sm p-2"><textarea id="qr-texto" rows="2" placeholder="Mensagem..." class="w-full rounded border-slate-300 text-sm p-2 resize-none"></textarea><button type="submit" class="w-full py-2 bg-primary text-white rounded text-sm font-bold">Salvar</button></form><div class="max-h-48 overflow-y-auto custom-scroll space-y-1 px-1"><ul id="modal-qr-list"></ul></div></div></div></div>
+
+    <div id="modal-create-group" class="fixed inset-0 bg-slate-900/60 z-[95] hidden flex items-center justify-center p-4"><div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"><div class="bg-slate-50 px-4 py-3 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">Novo Grupo</h3><button onclick="fecharModalGrupo()"><span class="material-symbols-rounded">close</span></button></div><div class="p-4 overflow-y-auto custom-scroll flex-1"><input type="text" id="group-name" class="w-full rounded-lg border-slate-300 p-2 text-sm mb-3" placeholder="Nome do Grupo"><div id="group-contacts-list" class="space-y-1"></div></div><div class="p-3 border-t bg-slate-50 flex justify-end"><button onclick="criarGrupo()" class="bg-primary text-white px-4 py-2 rounded-lg font-bold">Criar</button></div></div></div>
+
+    <div id="lightbox" class="fixed inset-0 z-[100] bg-black/95 hidden flex items-center justify-center p-4 cursor-pointer" onclick="this.classList.add('hidden')"><img id="lightbox-img" src="" class="max-w-full max-h-full rounded shadow-2xl object-contain"><button class="absolute top-5 right-5 text-white bg-white/10 p-2 rounded-full hover:bg-white/20"><span class="material-symbols-rounded text-3xl">close</span></button></div>
+
+    <script>
+        const BASE_URL = "http://localhost:30003";
+        let contatoAtual = null, contatoDados = {}, arquivoSelecionado = null, picker = null;
+        let todosContatos = [], quickResponses = [], categorias = [];
+        let contatosFixados = JSON.parse(localStorage.getItem('fixados') || '[]');
+        let activeTab = 'chats'; let filtroCategoria = 'todos';
+
+        // --- UTILS ---
+        function formatBytes(bytes) { if (!+bytes) return '0 B'; const k = 1024, i = Math.floor(Math.log(bytes) / Math.log(k)); return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${['B','KB','MB','GB'][i]}`; }
+        function showToast(msg, type='success'){ const c=document.getElementById('toast-container'),t=document.createElement('div'),color=type==='error'?'bg-red-500':'bg-badge';t.className=`${color} text-white px-4 py-2 rounded-lg shadow-xl text-sm font-bold flex gap-2 transition-all translate-x-full border border-white/20`;t.innerHTML=`<span class="material-symbols-rounded">${type==='error'?'error':'check_circle'}</span> ${msg}`;c.appendChild(t);setTimeout(()=>t.classList.remove('translate-x-full'),10);setTimeout(()=>t.remove(),4000); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userData = localStorage.getItem('user_data');
+            if (!userData) { window.location.href = 'index.html'; return; }
+            const user = JSON.parse(userData);
+            
+            document.getElementById('user-initials').textContent = user.nome.substring(0, 2).toUpperCase();
+            if (user.url_foto || user.caminho_foto_local) {
+                const src = user.caminho_foto_local ? `${BASE_URL}${user.caminho_foto_local}` : user.url_foto;
+                const img = document.getElementById('user-avatar-img'); img.src = src; img.classList.remove('hidden');
+                document.getElementById('user-initials').classList.add('hidden');
+            }
+
+            const trigger = document.getElementById('emoji-btn');
+            picker = picmoPopup.createPopup({}, { referenceElement: trigger, triggerElement: trigger, position: 'top-start' });
+            picker.addEventListener('emoji:select', (s) => { const inp = document.getElementById('message-input'); const start=inp.selectionStart, end=inp.selectionEnd; inp.value = inp.value.substring(0, start) + s.emoji + inp.value.substring(end); inp.focus(); inp.selectionStart=inp.selectionEnd=start+s.emoji.length; });
+            trigger.addEventListener('click', () => picker.toggle());
+
+            carregarCategorias(); carregarRespostasRapidas(); carregarContatos();
+            setInterval(() => { carregarContatos(true); if(contatoAtual) carregarConversa(contatoAtual, false); }, 3000);
+
+            document.getElementById('contact-filter').addEventListener('input', (e) => {
+                const termo = e.target.value.toLowerCase();
+                document.querySelectorAll('#contact-list > div, #groups-list > div').forEach(item => {
+                    item.style.display = item.innerText.toLowerCase().includes(termo) ? 'flex' : 'none';
+                });
+            });
+
+            const msgInput = document.getElementById('message-input');
+            msgInput.addEventListener('input', (e) => {
+                e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
+                if (e.target.value.startsWith('/')) mostrarMenuRespostas(e.target.value.substring(1).toLowerCase());
+                else document.getElementById('quick-response-menu').classList.remove('active');
+            });
+            document.addEventListener('click', (e) => { if(!e.target.closest('.msg-dropdown-btn')) document.querySelectorAll('.msg-dropdown').forEach(el => el.style.display='none'); });
+        });
+
+        // --- ABAS ---
+        function mudarAba(aba) {
+            activeTab = aba;
+            document.getElementById('tab-chats').classList.remove('active'); document.getElementById('tab-grupos').classList.remove('active');
+            document.getElementById('contact-list').classList.add('hidden'); document.getElementById('groups-list').classList.add('hidden');
+            if (aba === 'chats') { document.getElementById('tab-chats').classList.add('active'); document.getElementById('contact-list').classList.remove('hidden'); }
+            else { document.getElementById('tab-grupos').classList.add('active'); document.getElementById('groups-list').classList.remove('hidden'); }
+        }
+
+        // --- CONTATOS ---
+        async function carregarContatos(silencioso = false) {
+            try {
+                let url = `${BASE_URL}/api/chat/contatos`;
+                if(filtroCategoria !== 'todos') url += `?categoria=${filtroCategoria}`;
+                const res = await fetch(url); const data = await res.json();
+                
+                if (!data.erro && data.dados) {
+                    todosContatos = data.dados;
+                    if (!silencioso) { document.getElementById('contact-list').innerHTML = ''; document.getElementById('groups-list').innerHTML = ''; }
+                    
+                    const sorted = [...data.dados].sort((a, b) => {
+                        const aFix = contatosFixados.includes(a.numero); const bFix = contatosFixados.includes(b.numero);
+                        if (aFix && !bFix) return -1; if (!aFix && bFix) return 1; return 0;
+                    });
+
+                    sorted.forEach(c => {
+                        if(silencioso && document.getElementById(`contact-${c.numero}`)) {
+                            const badge = document.getElementById(`badge-${c.numero}`);
+                            if(badge) { if(c.nao_lidas > 0) { badge.classList.remove('hidden'); badge.textContent = c.nao_lidas; } else { badge.classList.add('hidden'); } }
+                            return;
+                        }
+                        const isGroup = c.is_group === true || (c.numero && c.numero.endsWith('@g.us'));
+                        const container = document.getElementById(isGroup ? 'groups-list' : 'contact-list');
+                        const isPinned = contatosFixados.includes(c.numero);
+                        const active = (contatoAtual === c.numero) ? 'bg-blue-50 border-l-4 border-primary' : 'hover:bg-slate-50 border-l-4 border-transparent';
+                        
+                        let avatarSrc = c.caminho_foto_local ? `${BASE_URL}${c.caminho_foto_local}` : c.url_foto;
+                        let avatarHtml = (avatarSrc && !avatarSrc.includes('null')) ? `<img src="${avatarSrc}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400"><span class="material-symbols-rounded text-2xl">${isGroup?'groups':'person'}</span></div>`;
+                        const unread = c.nao_lidas > 0 ? `<div id="badge-${c.numero}" class="bg-badge text-white text-[10px] font-bold px-1.5 h-4 min-w-[18px] rounded-full flex items-center justify-center shadow-sm">${c.nao_lidas}</div>` : `<div id="badge-${c.numero}" class="hidden"></div>`;
+                        let catTag = ''; if(c.categoria_id) { const cat = categorias.find(x => x.id == c.categoria_id); if(cat) catTag = `<span class="cat-dot" style="background:${cat.cor}"></span>`; }
+
+                        container.insertAdjacentHTML('beforeend', `
+                            <div id="contact-${c.numero}" onclick="abrirChat('${c.numero}')" class="flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 transition-colors ${active}">
+                                <div class="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-gray-100 relative">${avatarHtml}</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex justify-between items-center mb-1"><h4 class="text-slate-800 font-medium text-[15px] truncate flex items-center">${catTag}${c.nome || c.numero}</h4><span class="text-xs text-slate-400">${c.ultima_interacao?new Date(c.ultima_interacao).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span></div>
+                                    <div class="flex justify-between items-center"><p class="text-sm text-slate-500 truncate max-w-[180px]">${c.bloqueado ? '🚫 Bloqueado' : 'Clique para abrir'}</p><div class="flex items-center gap-1">${isPinned ? '<span class="material-symbols-rounded text-[16px] text-slate-400 -rotate-45">push_pin</span>' : ''}${unread}</div></div>
+                                </div>
+                            </div>`);
+                    });
+                }
+            } catch(e){}
+        }
+
+        async function abrirChat(numero) {
+            contatoAtual = numero;
+            try { const res = await fetch(`${BASE_URL}/api/chat/contato/${numero}`); const d = await res.json(); if(!d.erro) contatoDados = d.dados; } catch(e){}
+            document.getElementById('sidebar-panel').classList.add('hidden', 'md:flex');
+            document.getElementById('chat-panel').classList.remove('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('chat-header').classList.remove('hidden'); document.getElementById('chat-header').classList.add('flex');
+            document.getElementById('messages-container').classList.remove('hidden');
+            document.getElementById('input-area').classList.remove('hidden'); document.getElementById('input-area').classList.add('flex');
+
+            document.getElementById('header-name').textContent = contatoDados.nome || numero;
+            document.getElementById('header-number').textContent = numero;
+            const img = document.getElementById('header-avatar'), icon = document.getElementById('header-default-icon');
+            let src = contatoDados.caminho_foto_local ? `${BASE_URL}${contatoDados.caminho_foto_local}` : contatoDados.url_foto;
+            if(src && !src.includes('null')) { img.src = src; img.classList.remove('hidden'); icon.classList.add('hidden'); } else { img.classList.add('hidden'); icon.classList.remove('hidden'); }
+
+            atualizarUIBloqueio();
+            const pinIcon = document.getElementById('btn-pin-icon');
+            if(contatosFixados.includes(numero)) { pinIcon.classList.add('text-primary', 'fill-current'); } else { pinIcon.classList.remove('text-primary', 'fill-current'); }
+
+            document.getElementById('messages-container').innerHTML = '';
+            carregarConversa(numero, true);
+            fetch(`${BASE_URL}/api/chat/marcar-lidas/${numero}`, { method: 'POST' }).then(() => { const b=document.getElementById(`badge-${numero}`); if(b) b.classList.add('hidden'); });
+            document.querySelectorAll('[id^="contact-"]').forEach(el => el.classList.remove('bg-blue-50', 'border-primary'));
+            const active = document.getElementById(`contact-${numero}`); if(active) active.classList.add('bg-blue-50', 'border-primary');
+        }
+
+        // --- MENSAGENS E MÍDIA ---
+        async function carregarConversa(numero, forceScroll=false) {
+            if(numero !== contatoAtual) return;
+            const container = document.getElementById('messages-container');
+            try {
+                const res = await fetch(`${BASE_URL}/api/chat/mensagens/${numero}`); const data = await res.json();
+                if(!data.erro && data.dados) {
+                    let hasNew = false;
+                    data.dados.forEach(msg => {
+                        if(document.getElementById(`msg-${msg.id}`)) return;
+                        hasNew = true;
+                        
+                        const isOut = msg.tipo === 'ENVIADA';
+                        const bubbleClass = isOut ? 'bg-outgoing ml-auto rounded-tr-none' : 'bg-incoming mr-auto rounded-tl-none';
+                        const time = new Date(msg.data_hora.replace(' ','T')).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const path = msg.caminho_arquivo ? `${BASE_URL}${msg.caminho_arquivo}` : '';
+                        let content = ''; const type = msg.tipo_arquivo; const mime = msg.mimetype || '';
+                        
+                        // Icone Pin na Mensagem
+                        const pinIcon = msg.fixada ? '<span class="material-symbols-rounded text-[14px] text-slate-400 rotate-45 ml-1">keep</span>' : '';
+                        // Menu Dropdown
+                        const menuBtn = `<div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition z-10"><button class="bg-white/90 shadow-sm rounded-full p-1 text-slate-500 hover:text-primary msg-dropdown-btn" onclick="toggleMsgMenu('${msg.id}')"><span class="material-symbols-rounded text-lg">expand_more</span></button><div id="menu-${msg.id}" class="msg-dropdown"><button onclick="fixarMensagem('${msg.id}')"><span class="material-symbols-rounded text-sm">keep</span> Fixar</button><button onclick="deletarMensagem('${msg.id}')" class="text-red-500"><span class="material-symbols-rounded text-sm">delete</span> Apagar</button></div></div>`;
+
+                        if(type==='imagem'||mime.startsWith('image')) content = `<img src="${path}" class="rounded-lg max-w-[280px] cursor-pointer mb-1 border border-slate-200" onclick="document.getElementById('lightbox').classList.remove('hidden');document.getElementById('lightbox-img').src=this.src"><a href="${path}" download class="absolute bottom-2 right-2 bg-black/50 text-white rounded p-1"><span class="material-symbols-rounded text-sm">download</span></a>`;
+                        else if(type==='video'||mime.startsWith('video')) content = `<div class="bg-black rounded-lg overflow-hidden max-w-[320px] mb-1"><video controls src="${path}" class="w-full"></video></div>`;
+                        else if(type==='audio'||mime.startsWith('audio')) content = `<audio controls src="${path}" class="w-64 mt-1"></audio>`;
+                        else if(type==='pdf'||mime==='application/pdf') content = `<div class="flex items-center gap-3 bg-red-50 p-2 rounded w-64 border border-red-100 cursor-pointer" onclick="window.open('${path}')"><span class="material-symbols-rounded text-red-500">picture_as_pdf</span><div class="flex-1 overflow-hidden"><p class="text-sm font-bold truncate text-slate-700">${msg.nome_arquivo||'PDF'}</p><p class="text-[10px] uppercase text-slate-500">${formatBytes(msg.tamanho_arquivo)}</p></div><span class="material-symbols-rounded text-slate-400">download</span></div>`;
+                        else if(type==='documento') content = `<div class="flex items-center gap-3 bg-blue-50 p-2 rounded w-64 border border-blue-100 cursor-pointer" onclick="window.open('${path}')"><span class="material-symbols-rounded text-primary">description</span><div class="flex-1 overflow-hidden"><p class="text-sm font-bold truncate text-slate-700">${msg.nome_arquivo||'Arquivo'}</p><p class="text-[10px] uppercase text-slate-500">${formatBytes(msg.tamanho_arquivo)}</p></div><span class="material-symbols-rounded text-slate-400">download</span></div>`;
+                        
+                        if(msg.mensagem) content += `<p class="text-[14.5px] text-slate-800 leading-snug whitespace-pre-wrap mt-1">${msg.mensagem}</p>`;
+
+                        const pinStyle = msg.fixada ? 'border-l-4 border-l-yellow-400 bg-yellow-50/50' : '';
+
+                        container.insertAdjacentHTML('beforeend', `<div id="msg-${msg.id}" class="flex w-full mb-1 msg-enter ${isOut?'justify-end':'justify-start'}"><div class="${bubbleClass} ${pinStyle} max-w-[85%] md:max-w-[70%] rounded-lg p-2.5 shadow-message border border-slate-200/50 relative group">${menuBtn}${content}<div class="flex justify-end items-center gap-1 mt-1 select-none float-right relative top-1 ml-2"><span class="text-[11px] text-slate-400">${time}</span>${pinIcon}${isOut?'<span class="material-symbols-rounded text-[15px] text-blue-400">done_all</span>':''}</div></div></div>`);
+                    });
+                    if(forceScroll||hasNew) container.scrollTop = container.scrollHeight;
+                }
+            } catch(e){}
+        }
+
+        // --- AÇÕES MENSAGEM ---
+        function toggleMsgMenu(id) { document.querySelectorAll('.msg-dropdown').forEach(el => { if(el.id !== `menu-${id}`) el.style.display='none'; }); const m = document.getElementById(`menu-${id}`); m.style.display = m.style.display === 'block' ? 'none' : 'block'; }
+        async function fixarMensagem(id) { try { await fetch(`${BASE_URL}/api/chat/mensagem/${id}/fixar`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({numero_contato: contatoAtual})}); showToast("Mensagem fixada!"); carregarConversa(contatoAtual, false); } catch(e){} }
+        async function deletarMensagem(id) { if(confirm("Apagar?")) { try { await fetch(`${BASE_URL}/api/chat/mensagem/${id}`, {method:'DELETE'}); document.getElementById(`msg-${id}`).remove(); } catch(e){} } }
+
+        // --- CRM ---
+        async function atualizarCategoriaContato() { const catId = document.getElementById('info-category').value; await fetch(`${BASE_URL}/api/chat/contato/${contatoAtual}/categoria`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({categoria_id: catId}) }); contatoDados.categoria_id = catId; showToast("Categoria atualizada!"); carregarContatos(); }
+        async function salvarNotas() { const notas = document.getElementById('info-notes').value; await fetch(`${BASE_URL}/api/chat/contato/${contatoAtual}/notas`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({notas}) }); contatoDados.notas = notas; showToast("Notas salvas!"); }
+        async function alternarBloqueio() { const novoStatus = !contatoDados.bloqueado; await fetch(`${BASE_URL}/api/chat/contato/${contatoAtual}/bloquear`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({bloqueado: novoStatus}) }); contatoDados.bloqueado = novoStatus; atualizarUIBloqueio(); showToast(novoStatus ? "Bloqueado" : "Desbloqueado"); }
+        function atualizarUIBloqueio() { const b = contatoDados.bloqueado; document.getElementById('btn-block').innerHTML = b ? 'Desbloquear' : 'Bloquear'; if(b) { document.getElementById('input-area').classList.add('hidden'); document.getElementById('blocked-warning').classList.remove('hidden'); } else { document.getElementById('input-area').classList.remove('hidden'); document.getElementById('blocked-warning').classList.add('hidden'); } }
+        function fecharPainelInfo() { document.getElementById('info-panel').classList.remove('open'); }
+        function toggleInfoPanel() { const p = document.getElementById('info-panel'); if(p.classList.contains('open')) fecharPainelInfo(); else abrirPainelInfo(); }
+        function abrirPainelInfo() { if(!contatoDados.numero) return; document.getElementById('info-panel').classList.add('open'); document.getElementById('info-name').textContent = contatoDados.nome || contatoDados.numero; document.getElementById('info-number').textContent = contatoDados.numero; document.getElementById('info-notes').value = contatoDados.notas || ''; document.getElementById('info-category').value = contatoDados.categoria_id || ""; atualizarUIBloqueio(); }
+
+        // --- ENVIO ---
+        function handleFileSelect(input) { if (input.files.length > 0) { arquivoSelecionado = input.files[0]; document.getElementById('file-preview').classList.remove('hidden'); document.getElementById('file-preview').classList.add('flex'); document.getElementById('file-name-preview').textContent = arquivoSelecionado.name; } }
+        function limparAnexo() { arquivoSelecionado = null; document.getElementById('file-upload').value = ''; document.getElementById('file-preview').classList.add('hidden'); document.getElementById('file-preview').classList.remove('flex'); }
+        function checkEnter(e) { if(e.key === 'Enter' && !e.shiftKey && !document.getElementById('quick-response-menu').classList.contains('active')) { e.preventDefault(); enviarMensagem(); } }
+        async function enviarMensagem() {
+            const input = document.getElementById('message-input'); const texto = input.value.trim();
+            if(!contatoAtual) return; if(!texto && !arquivoSelecionado) return;
+            const formData = new FormData(); formData.append('numero', contatoAtual);
+            if(texto) formData.append('mensagem', texto); if(arquivoSelecionado) formData.append('arquivo', arquivoSelecionado);
+            input.value = ''; input.style.height = 'auto'; limparAnexo();
+            try { await fetch(`${BASE_URL}/api/chat/enviar`, { method: 'POST', body: formData }); carregarConversa(contatoAtual, true); } catch (e) { showToast("Erro de conexão", 'error'); }
+        }
+
+        // --- OUTROS ---
+        async function carregarCategorias() { const res = await fetch(`${BASE_URL}/api/categorias`); const d = await res.json(); if(!d.erro) { categorias = d.dados; renderizarFiltrosCategorias(); renderizarSelectCategorias(); listarCategoriasModal(); } }
+        function renderizarFiltrosCategorias() { const c = document.getElementById('category-filter-list'); c.innerHTML=`<button onclick="filtrarPorCategoria('todos')" class="tab-btn active px-3 py-1 text-xs font-bold whitespace-nowrap bg-white border rounded-full">Tudo</button>`; categorias.forEach(cat => c.insertAdjacentHTML('beforeend', `<button onclick="filtrarPorCategoria(${cat.id})" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border bg-white" style="border-color:${cat.cor};color:${cat.cor}">${cat.nome}</button>`)); }
+        function renderizarSelectCategorias() { const s = document.getElementById('info-category'); s.innerHTML='<option value="">Sem Categoria</option>'; categorias.forEach(c => s.insertAdjacentHTML('beforeend', `<option value="${c.id}">${c.nome}</option>`)); }
+        function filtrarPorCategoria(id) { filtroCategoria = id; carregarContatos(); }
+        async function carregarRespostasRapidas() { const r = await fetch(`${BASE_URL}/api/respostas-rapidas`); const d = await r.json(); if(!d.erro) quickResponses = d.dados; }
+        function mostrarMenuRespostas(termo) { const m = document.getElementById('quick-response-menu'); const l = document.getElementById('quick-response-list'); l.innerHTML = ''; const f = quickResponses.filter(qr => qr.titulo.toLowerCase().includes(termo)); f.forEach(qr => l.insertAdjacentHTML('beforeend', `<li onclick="selecionarResposta('${qr.texto.replace(/\n/g, '\\n')}')" class="px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm border-b"><b>${qr.titulo}</b><br><span class="text-xs text-gray-500">${qr.texto}</span></li>`)); m.classList.add('active'); }
+        function selecionarResposta(texto) { const i = document.getElementById('message-input'); i.value = texto; i.focus(); document.getElementById('quick-response-menu').classList.remove('active'); }
+        
+        function abrirModalCategorias() { document.getElementById('modal-categories').classList.remove('hidden'); }
+        function fecharModalCategorias() { document.getElementById('modal-categories').classList.add('hidden'); }
+        function listarCategoriasModal() { const l = document.getElementById('categories-list-manage'); l.innerHTML=''; categorias.forEach(c => l.insertAdjacentHTML('beforeend', `<div class="flex justify-between p-2 border-b"><span style="color:${c.cor}">${c.nome}</span><button onclick="deletarCategoria(${c.id})" class="text-red-500">Del</button></div>`)); }
+        async function criarCategoria() { const n = document.getElementById('cat-name').value, c = document.getElementById('cat-color').value; await fetch(`${BASE_URL}/api/categorias`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome:n, cor:c})}); document.getElementById('cat-name').value=''; await carregarCategorias(); }
+        async function deletarCategoria(id) { if(confirm("Excluir?")) { await fetch(`${BASE_URL}/api/categorias/${id}`, {method:'DELETE'}); await carregarCategorias(); } }
+        
+        function abrirModalRespostas() { document.getElementById('quick-response-menu').classList.remove('active'); renderizarListaModalQR(); document.getElementById('modal-quick-responses').classList.remove('hidden'); }
+        function fecharModalRespostas() { document.getElementById('modal-quick-responses').classList.add('hidden'); }
+        function renderizarListaModalQR() { const l = document.getElementById('modal-qr-list'); l.innerHTML = ''; quickResponses.forEach(qr => l.insertAdjacentHTML('beforeend', `<li class="flex justify-between p-2 border-b text-sm"><span>${qr.titulo}</span><button onclick="deletarResposta(${qr.id})" class="text-red-500">Del</button></li>`)); }
+        async function criarRespostaRapida() { const t = document.getElementById('qr-titulo').value, txt = document.getElementById('qr-texto').value; await fetch(`${BASE_URL}/api/respostas-rapidas`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({titulo:t, texto:txt})}); await carregarRespostasRapidas(); renderizarListaModalQR(); showToast("Salvo!"); }
+        async function deletarResposta(id) { if(confirm("Excluir?")) { await fetch(`${BASE_URL}/api/respostas-rapidas/${id}`, {method:'DELETE'}); await carregarRespostasRapidas(); renderizarListaModalQR(); } }
+
+        function abrirModalGrupo() { const l = document.getElementById('group-contacts-list'); l.innerHTML=''; todosContatos.forEach(c => l.insertAdjacentHTML('beforeend', `<label class="flex gap-2 p-2 hover:bg-slate-50 cursor-pointer"><input type="checkbox" class="check-group" value="${c.numero}"><span class="text-sm">${c.nome||c.numero}</span></label>`)); document.getElementById('modal-create-group').classList.remove('hidden'); document.getElementById('modal-create-group').classList.add('flex'); }
+        function fecharModalGrupo() { document.getElementById('modal-create-group').classList.add('hidden'); document.getElementById('modal-create-group').classList.remove('flex'); }
+        async function criarGrupo() { const nome = document.getElementById('group-name').value; if(!nome) return showToast("Nome inválido", "error"); showToast(`Grupo ${nome} criado! (Mock)`, "success"); fecharModalGrupo(); }
+        
+        function toggleFixarAtual() { if(!contatoAtual) return; const idx = contatosFixados.indexOf(contatoAtual); if(idx > -1) { contatosFixados.splice(idx, 1); showToast("Desafixado"); } else { contatosFixados.push(contatoAtual); showToast("Fixado"); } localStorage.setItem('fixados', JSON.stringify(contatosFixados)); carregarContatos(); }
+        function fecharChatMobile() { document.getElementById('chat-panel').classList.add('hidden'); document.getElementById('sidebar-panel').classList.remove('hidden'); contatoAtual = null; }
+        document.addEventListener('click', (e) => { if(!e.target.closest('.msg-dropdown-btn')) document.querySelectorAll('.msg-dropdown').forEach(el => el.style.display='none'); });
+    </script>
+</body>
+</html>

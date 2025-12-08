@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Acesso & Cadastro - Automação WhatsApp</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+    <style>
+        .form-input:focus {
+            border-color: #135bec;
+            box-shadow: 0 0 0 2px rgba(19, 91, 236, 0.2);
+        }
+        .shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="font-display">
+    <div class="relative flex min-h-screen w-full flex-col bg-background-light dark:bg-background-dark group/design-root" style='font-family: "Inter", "Noto Sans", sans-serif;'>
+        <div class="flex flex-1">
+            <div class="relative hidden w-0 flex-1 lg:block">
+                <img class="absolute inset-0 h-full w-full object-cover" src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80" alt="Office collaboration"/>
+                <div class="absolute inset-0 bg-primary/70"></div>
+                <div class="absolute inset-0 flex flex-col justify-center p-12 text-white">
+                    <h2 class="text-4xl font-bold">Automação WhatsApp</h2>
+                    <p class="mt-4 text-xl">Gerencie seus fluxos e potencialize seu atendimento.</p>
+                </div>
+            </div>
+
+            <div class="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+                <div class="mx-auto w-full max-w-sm lg:w-96">
+                    
+                    <div class="flex flex-col gap-3 mb-8">
+                        <p id="titulo-pagina" class="text-[#111318] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Acesse sua conta</p>
+                        <p id="subtitulo-pagina" class="text-[#616f89] dark:text-gray-400 text-base font-normal leading-normal">Bem-vindo(a) de volta!</p>
+                    </div>
+
+                    <div id="mensagem-feedback" class="hidden mb-4 p-3 rounded text-sm text-center font-medium"></div>
+
+                    <div class="relative">
+                        
+                        <form id="form-login" class="space-y-6 fade-in" onsubmit="event.preventDefault(); fazerLogin();">
+                            <label class="flex flex-col min-w-40 flex-1">
+                                <p class="text-[#111318] dark:text-gray-300 text-base font-medium leading-normal pb-2">Usuário</p>
+                                <input id="login-usuario" required class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white focus:outline-0 focus:ring-0 border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#616f89] dark:placeholder-gray-500 p-[15px] text-base font-normal leading-normal" placeholder="ex: admin" value=""/>
+                            </label>
+                            
+                            <div class="flex flex-col min-w-40 flex-1">
+                                <p class="text-[#111318] dark:text-gray-300 text-base font-medium leading-normal pb-2">Senha</p>
+                                <div class="relative">
+                                    <input id="login-senha" required class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white focus:outline-0 focus:ring-0 border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#616f89] dark:placeholder-gray-500 p-[15px] pr-12 text-base font-normal leading-normal" placeholder="Sua senha" type="password" value=""/>
+                                    <button type="button" onclick="toggleSenha('login-senha', 'icon-login-senha')" class="absolute inset-y-0 right-0 flex items-center px-4 text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+                                        <span class="material-symbols-outlined" id="icon-login-senha">visibility_off</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <p class="text-primary text-sm font-normal leading-normal underline cursor-pointer">Esqueceu a senha?</p>
+                            </div>
+
+                            <div class="flex justify-center">
+                                <button type="submit" id="btn-login" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 flex-1 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
+                                    <span class="truncate">Entrar</span>
+                                    <span class="loader hidden ml-2 material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                </button>
+                            </div>
+
+                            <div class="text-center mt-4">
+                                <p class="text-[#616f89] dark:text-gray-400 text-sm">
+                                    Não tem uma conta? 
+                                    <span onclick="alternarModo('cadastro')" class="text-primary font-bold cursor-pointer hover:underline">Cadastre-se</span>
+                                </p>
+                            </div>
+                        </form>
+
+                        <form id="form-cadastro" class="space-y-6 hidden fade-in" onsubmit="event.preventDefault(); fazerCadastro();">
+                            <label class="flex flex-col min-w-40 flex-1">
+                                <p class="text-[#111318] dark:text-gray-300 text-base font-medium leading-normal pb-2">Nome Completo</p>
+                                <input id="cad-nome" required class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white focus:outline-0 focus:ring-0 border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#616f89] dark:placeholder-gray-500 p-[15px] text-base font-normal leading-normal" placeholder="ex: João Silva" value=""/>
+                            </label>
+
+                            <label class="flex flex-col min-w-40 flex-1">
+                                <p class="text-[#111318] dark:text-gray-300 text-base font-medium leading-normal pb-2">Usuário</p>
+                                <input id="cad-usuario" required class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white focus:outline-0 focus:ring-0 border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#616f89] dark:placeholder-gray-500 p-[15px] text-base font-normal leading-normal" placeholder="ex: joao.silva" value=""/>
+                            </label>
+                            
+                            <div class="flex flex-col min-w-40 flex-1">
+                                <p class="text-[#111318] dark:text-gray-300 text-base font-medium leading-normal pb-2">Senha</p>
+                                <div class="relative">
+                                    <input id="cad-senha" required class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white focus:outline-0 focus:ring-0 border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#616f89] dark:placeholder-gray-500 p-[15px] pr-12 text-base font-normal leading-normal" placeholder="Crie uma senha segura" type="password" value=""/>
+                                    <button type="button" onclick="toggleSenha('cad-senha', 'icon-cad-senha')" class="absolute inset-y-0 right-0 flex items-center px-4 text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+                                        <span class="material-symbols-outlined" id="icon-cad-senha">visibility_off</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-center">
+                                <button type="submit" id="btn-cadastro" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 flex-1 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
+                                    <span class="truncate">Criar Conta</span>
+                                    <span class="loader hidden ml-2 material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                                </button>
+                            </div>
+
+                            <div class="text-center mt-4">
+                                <p class="text-[#616f89] dark:text-gray-400 text-sm">
+                                    Já tem conta? 
+                                    <span onclick="alternarModo('login')" class="text-primary font-bold cursor-pointer hover:underline">Faça Login</span>
+                                </p>
+                            </div>
+                        </form>
+
+                    </div>
+                    
+                    <footer class="mt-16 text-center">
+                        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+                            <a class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal" href="#">Termos</a>
+                            <a class="text-[#616f89] dark:text-gray-400 text-sm font-normal leading-normal" href="#">Privacidade</a>
+                        </div>
+                        <p class="text-[#616f89] dark:text-gray-500 text-sm font-normal leading-normal mt-4">© 2024 Automação WhatsApp</p>
+                    </footer>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = "http://localhost:30003";
+
+        // DOM Elements
+        const formLogin = document.getElementById('form-login');
+        const formCadastro = document.getElementById('form-cadastro');
+        const tituloPagina = document.getElementById('titulo-pagina');
+        const subtituloPagina = document.getElementById('subtitulo-pagina');
+        const msgFeedback = document.getElementById('mensagem-feedback');
+
+        function alternarModo(modo) {
+            msgFeedback.classList.add('hidden');
+            if (modo === 'cadastro') {
+                formLogin.classList.add('hidden');
+                formCadastro.classList.remove('hidden');
+                tituloPagina.textContent = "Crie sua conta";
+                subtituloPagina.textContent = "Preencha os dados abaixo para começar.";
+            } else {
+                formCadastro.classList.add('hidden');
+                formLogin.classList.remove('hidden');
+                tituloPagina.textContent = "Acesse sua conta";
+                subtituloPagina.textContent = "Bem-vindo(a) de volta!";
+            }
+        }
+
+        function toggleSenha(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.textContent = "visibility";
+            } else {
+                input.type = "password";
+                icon.textContent = "visibility_off";
+            }
+        }
+
+        function mostrarMensagem(texto, erro = false) {
+            msgFeedback.textContent = texto;
+            msgFeedback.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            if (erro) {
+                msgFeedback.classList.add('bg-red-100', 'text-red-700', 'shake');
+                setTimeout(() => msgFeedback.classList.remove('shake'), 500);
+            } else {
+                msgFeedback.classList.add('bg-green-100', 'text-green-700');
+            }
+        }
+
+        function setButtonLoading(btnId, isLoading) {
+            const btn = document.getElementById(btnId);
+            const loader = btn.querySelector('.loader');
+            const text = btn.querySelector('span:not(.loader)');
+            btn.disabled = isLoading;
+            if (isLoading) {
+                loader.classList.remove('hidden');
+                text.classList.add('opacity-50');
+            } else {
+                loader.classList.add('hidden');
+                text.classList.remove('opacity-50');
+            }
+        }
+
+        // ============================================
+        // 1. LOGICA DE LOGIN (Atualizada)
+        // ============================================
+        async function fazerLogin() {
+            const usuario = document.getElementById('login-usuario').value.trim();
+            const senha = document.getElementById('login-senha').value.trim();
+
+            if (!usuario || !senha) return mostrarMensagem("Preencha todos os campos.", true);
+
+            setButtonLoading('btn-login', true);
+            msgFeedback.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/usuarios/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, senha })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && !data.erro) {
+                    mostrarMensagem(`Login bem-sucedido! Redirecionando...`, false);
+                    
+                    // 1. SALVAR DADOS NO STORAGE
+                    localStorage.setItem('user_data', JSON.stringify(data.user));
+                    
+                    // 2. REDIRECIONAR APÓS 1.5 SEGUNDOS
+                    setTimeout(() => {
+                        window.location.href = 'termos.ar.zap.html';
+                    }, 1500);
+
+                } else {
+                    mostrarMensagem("Usuário ou senha incorretos.", true);
+                }
+            } catch (error) {
+                mostrarMensagem("Erro de conexão com o servidor.", true);
+                console.error(error);
+            } finally {
+                setButtonLoading('btn-login', false);
+            }
+        }
+
+        // ============================================
+        // 2. LOGICA DE CADASTRO
+        // ============================================
+        async function fazerCadastro() {
+            const nome = document.getElementById('cad-nome').value.trim();
+            const usuario = document.getElementById('cad-usuario').value.trim();
+            const senha = document.getElementById('cad-senha').value.trim();
+
+            if (!nome || !usuario || !senha) return mostrarMensagem("Todos os campos são obrigatórios.", true);
+
+            setButtonLoading('btn-cadastro', true);
+            msgFeedback.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/usuarios/cadastro`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, usuario, senha })
+                });
+
+                const data = await response.json();
+
+                if (response.status === 200 && !data.erro) {
+                    mostrarMensagem("Conta criada com sucesso! Faça login.", false);
+                    setTimeout(() => {
+                        document.getElementById('form-cadastro').reset();
+                        alternarModo('login');
+                        document.getElementById('login-usuario').value = usuario;
+                        document.getElementById('login-senha').focus();
+                    }, 1500);
+                } else {
+                    mostrarMensagem("Erro: Usuário já existe ou dados inválidos.", true);
+                }
+            } catch (error) {
+                mostrarMensagem("Erro ao tentar cadastrar.", true);
+                console.error(error);
+            } finally {
+                setButtonLoading('btn-cadastro', false);
+            }
+        }
+    </script>
+</body>
+</html>

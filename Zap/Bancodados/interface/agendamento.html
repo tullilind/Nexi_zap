@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>NEXI CRM - Campanhas</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+    <script src="../api_base/api.js"></script>
+    <script src="../api_base/Arsegury.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#2563eb", 
+                        'primary-dark': "#1d4ed8",
+                        secondary: "#f1f5f9",
+                        badge: "#25D366",
+                        danger: "#ef4444",
+                        warning: "#f59e0b"
+                    },
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif']
+                    },
+                    boxShadow: { 'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #cbd5e1; height: 100vh; overflow: hidden; }
+        
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 4px; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .progress-bar-striped {
+            background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        @keyframes progress-bar-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }
+    </style>
+</head>
+<body class="flex flex-col text-slate-800">
+
+    <div class="fixed top-0 w-full h-32 bg-primary z-0"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
+
+    <div class="relative z-10 container mx-auto h-full py-0 md:py-4 px-0 md:px-4 max-w-[1920px]">
+        <div class="bg-white md:rounded-xl shadow-2xl flex h-full overflow-hidden border border-slate-200">
+            
+            <div id="sidebar-container" class="w-full md:w-[300px] lg:w-[320px] hidden md:flex z-20"></div>
+
+            <main class="flex-1 flex flex-col bg-[#f0f4f8] relative overflow-hidden">
+                
+                <header class="h-20 px-8 flex items-center justify-between shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                            <span class="material-symbols-rounded text-primary">campaign</span> Disparos em Massa
+                        </h1>
+                        <p class="text-sm text-slate-500">Gerencie campanhas de marketing e agendamentos.</p>
+                    </div>
+                    <button onclick="abrirModalCampanha()" class="bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform hover:-translate-y-0.5">
+                        <span class="material-symbols-rounded">add_circle</span> Nova Campanha
+                    </button>
+                </header>
+
+                <div class="flex-1 overflow-y-auto custom-scroll p-8">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white p-5 rounded-2xl shadow-card border border-slate-100 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-primary"><span class="material-symbols-rounded text-2xl">rocket_launch</span></div>
+                            <div><p class="text-slate-500 text-xs font-bold uppercase">Total Campanhas</p><h3 class="text-2xl font-black text-slate-800" id="stat-total-campanhas">0</h3></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow-card border border-slate-100 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600"><span class="material-symbols-rounded text-2xl">done_all</span></div>
+                            <div><p class="text-slate-500 text-xs font-bold uppercase">Msgs Enviadas</p><h3 class="text-2xl font-black text-slate-800" id="stat-msgs-enviadas">0</h3></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow-card border border-slate-100 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600"><span class="material-symbols-rounded text-2xl">event</span></div>
+                            <div><p class="text-slate-500 text-xs font-bold uppercase">Agendadas</p><h3 class="text-2xl font-black text-slate-800" id="stat-agendadas">0</h3></div>
+                        </div>
+                         <div class="bg-white p-5 rounded-2xl shadow-card border border-slate-100 flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center text-yellow-600"><span class="material-symbols-rounded text-2xl">sync</span></div>
+                            <div><p class="text-slate-500 text-xs font-bold uppercase">Processando</p><h3 class="text-2xl font-black text-slate-800" id="stat-processando">0</h3></div>
+                        </div>
+                    </div>
+
+                    <div id="campaigns-grid" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 pb-10">
+                        <div class="col-span-full text-center py-20 opacity-50 flex flex-col items-center">
+                            <span class="material-symbols-rounded text-5xl mb-2 text-slate-300">hourglass_empty</span>
+                            <p class="text-slate-400">Carregando campanhas...</p>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="modal-create-campaign" class="fixed inset-0 bg-slate-900/60 z-[90] hidden flex items-center justify-center backdrop-blur-sm p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-200 flex flex-col max-h-[90vh]" id="modal-content">
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <span class="material-symbols-rounded text-primary">rocket_launch</span> Nova Campanha
+                </h3>
+                <button onclick="fecharModalCampanha()" class="text-slate-400 hover:text-red-500 transition-colors"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div class="p-8 overflow-y-auto custom-scroll flex-1">
+                <form id="form-campaign" onsubmit="event.preventDefault(); criarCampanha();" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase">Nome da Campanha</label>
+                            <input type="text" id="campanha-nome" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Ex: Promoção Natal" required>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase">Data de Agendamento</label>
+                            <input type="datetime-local" id="campanha-data" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary text-slate-600">
+                            <p class="text-[10px] text-slate-400">Deixe vazio para enviar agora.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm">upload_file</span> Arquivo de Contatos
+                        </label>
+                        <div class="relative border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-blue-50 hover:border-primary transition-colors p-6 text-center cursor-pointer group" id="drop-area">
+                            <input type="file" id="campanha-arquivo" accept=".xlsx, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="analisarArquivo(this)" required>
+                            <div id="upload-placeholder" class="pointer-events-none group-hover:scale-105 transition-transform">
+                                <div class="w-12 h-12 bg-white rounded-full shadow-sm mx-auto flex items-center justify-center mb-2 text-primary"><span class="material-symbols-rounded text-2xl">table_view</span></div>
+                                <p class="text-sm font-bold text-slate-600">Arraste ou clique para selecionar</p>
+                                <p class="text-xs text-slate-400 mt-1">Excel (.xlsx) ou CSV</p>
+                            </div>
+                            <div id="file-info" class="hidden flex-col items-center pointer-events-none">
+                                <span class="material-symbols-rounded text-3xl text-green-500 mb-2">check_circle</span>
+                                <p id="file-name" class="font-bold text-slate-800 text-sm"></p>
+                                <p class="text-xs text-slate-500 mt-1" id="file-stats">Analisando...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="config-section" class="hidden space-y-6 pt-4 border-t border-slate-100 animate-fade-in">
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-4">
+                            <div class="flex-1"><label class="text-xs font-bold text-blue-800 uppercase mb-1 block">Coluna de Telefone</label><select id="select-coluna-numero" class="w-full rounded-lg border-blue-200 text-sm p-2 bg-white focus:ring-primary"></select></div>
+                            <div class="flex-1"><label class="text-xs font-bold text-blue-800 uppercase mb-1 block">Variáveis Disponíveis</label><div id="lista-colunas" class="flex flex-wrap gap-1"></div></div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase flex justify-between"><span>Mensagem</span><span class="text-primary text-[10px]">Clique nas variáveis acima para inserir</span></label>
+                            <textarea id="campanha-mensagem" rows="4" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none" placeholder="Olá {Nome}, confira nossas ofertas!"></textarea>
+                        </div>
+                        <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1"><span class="material-symbols-rounded text-sm">attach_file</span> Mídia (Opcional)</label><input type="file" id="campanha-midia" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100"></div>
+                    </div>
+                    <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                        <button type="button" onclick="fecharModalCampanha()" class="px-5 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition">Cancelar</button>
+                        <button type="submit" id="btn-submit" class="bg-primary hover:bg-primary-dark text-white px-8 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><span>Confirmar e Iniciar</span><span class="material-symbols-rounded">send</span></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="../api_base/menu.js"></script>
+
+    <script>
+        // BASE_URL vem do api.js
+        let colunasDetectadas = [], nomeArquivoAnalisado = "";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // O menu.js cuida do Auth Check
+            listarCampanhas();
+            setInterval(listarCampanhas, 3000);
+        });
+
+        async function listarCampanhas() {
+            const grid = document.getElementById('campaigns-grid');
+            try {
+                const response = await fetch(`${BASE_URL}/api/campanhas`);
+                const data = await response.json();
+                if (!data.erro && data.dados) {
+                    if(data.dados.length === 0) {
+                        grid.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400 flex flex-col items-center"><span class="material-symbols-rounded text-5xl mb-2 text-slate-200">inbox</span><p>Nenhuma campanha criada.</p></div>`;
+                        atualizarStats(0,0,0,0); return;
+                    }
+                    let stats = { total: data.dados.length, enviadas: 0, agendadas: 0, processando: 0 };
+                    data.dados.forEach(c => {
+                        stats.enviadas += c.enviados || 0;
+                        if(c.status === 'AGENDADO') stats.agendadas++;
+                        if(c.status === 'PROCESSANDO') stats.processando++;
+                    });
+                    atualizarStats(stats.total, stats.enviadas, stats.agendadas, stats.processando);
+
+                    grid.innerHTML = '';
+                    data.dados.forEach((c) => {
+                        const total = c.total_numeros || 0;
+                        const enviados = c.enviados || 0;
+                        const pct = total > 0 ? Math.round((enviados/total)*100) : 0;
+                        const statusConfig = {
+                            'PROCESSANDO': { color: 'bg-blue-100 text-blue-700', icon: 'sync', bar: 'bg-primary progress-bar-striped', border: 'ring-2 ring-blue-100' },
+                            'CONCLUIDO': { color: 'bg-green-100 text-green-700', icon: 'check_circle', bar: 'bg-green-500', border: '' },
+                            'AGENDADO': { color: 'bg-purple-100 text-purple-700', icon: 'event', bar: 'bg-purple-400', border: '' },
+                            'PAUSADO': { color: 'bg-orange-100 text-orange-700', icon: 'pause', bar: 'bg-orange-400', border: 'border-orange-200' },
+                            'ERRO': { color: 'bg-red-100 text-red-700', icon: 'error', bar: 'bg-red-500', border: 'border-red-200' }
+                        };
+                        const st = statusConfig[c.status] || statusConfig['CONCLUIDO'];
+                        let controls = '';
+                        if(c.status === 'PROCESSANDO') controls += `<button onclick="pausarCampanha(${c.id})" class="p-1.5 hover:bg-orange-100 text-orange-500 rounded transition" title="Pausar"><span class="material-symbols-rounded">pause</span></button>`;
+                        else if(c.status === 'PAUSADO') controls += `<button onclick="retomarCampanha(${c.id})" class="p-1.5 hover:bg-blue-100 text-blue-600 rounded transition" title="Retomar"><span class="material-symbols-rounded">play_arrow</span></button>`;
+                        
+                        grid.insertAdjacentHTML('beforeend', `
+                            <div class="bg-white p-5 rounded-2xl shadow-card border border-slate-100 relative fade-in ${st.border}">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div class="flex items-center gap-3 overflow-hidden">
+                                        <div class="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0"><span class="material-symbols-rounded">campaign</span></div>
+                                        <div class="min-w-0"><h3 class="font-bold text-slate-700 text-sm truncate" title="${c.nome}">${c.nome}</h3><p class="text-[10px] text-slate-400 font-mono truncate">${c.data_criacao}</p></div>
+                                    </div>
+                                    <span class="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${st.color}"><span class="material-symbols-rounded text-sm">${st.icon}</span> ${c.status}</span>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-100 mb-3 h-14 overflow-hidden"><p class="text-xs text-slate-500 italic line-clamp-2">"${c.mensagem_base}"</p></div>
+                                <div class="flex justify-between items-end mb-1"><span class="text-xl font-black text-slate-700">${pct}%</span><div class="text-right text-xs text-slate-500"><span class="font-bold text-slate-700">${enviados}</span> / ${total}</div></div>
+                                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3"><div class="h-full ${st.bar} rounded-full transition-all duration-500" style="width: ${pct}%"></div></div>
+                                <div class="flex justify-between items-center border-t border-slate-100 pt-2"><span class="text-[10px] font-bold text-slate-400 flex items-center gap-1"><span class="material-symbols-rounded text-sm">schedule</span> ${c.data_agendamento || 'Imediato'}</span><div class="flex gap-1">${controls}<button onclick="deletarCampanha(${c.id})" class="p-1.5 hover:bg-red-100 text-red-500 rounded transition"><span class="material-symbols-rounded">delete</span></button></div></div>
+                            </div>
+                        `);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        async function analisarArquivo(input) {
+            if (input.files.length === 0) return;
+            document.getElementById('upload-placeholder').classList.add('hidden');
+            const info = document.getElementById('file-info'); info.classList.remove('hidden'); info.classList.add('flex');
+            document.getElementById('file-name').textContent = input.files[0].name;
+            document.getElementById('file-stats').textContent = "Analisando colunas...";
+            const formData = new FormData(); formData.append('arquivo', input.files[0]);
+            try {
+                const response = await fetch(`${BASE_URL}/api/campanhas/analisar-arquivo`, { method: 'POST', body: formData });
+                const data = await response.json();
+                if (!data.erro) {
+                    document.getElementById('config-section').classList.remove('hidden');
+                    document.getElementById('file-stats').textContent = `${data.total_linhas} contatos encontrados`;
+                    document.getElementById('file-stats').classList.add('text-green-600', 'font-bold');
+                    colunasDetectadas = data.colunas; nomeArquivoAnalisado = data.nome_arquivo;
+                    const select = document.getElementById('select-coluna-numero'); const tags = document.getElementById('lista-colunas');
+                    select.innerHTML = ''; tags.innerHTML = '';
+                    data.colunas.forEach(col => {
+                        const opt = document.createElement('option'); opt.value = col; opt.textContent = col;
+                        if(col.toLowerCase().match(/(tel|cel|phone|num)/)) opt.selected = true;
+                        select.appendChild(opt);
+                        tags.insertAdjacentHTML('beforeend', `<span class="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono text-slate-600 cursor-pointer hover:bg-blue-50 hover:text-primary transition" onclick="inserirVariavel('${col}')">{${col}}</span>`);
+                    });
+                } else { showToast(data.mensagem || "Erro ao analisar", "error"); }
+            } catch (e) { showToast("Erro de conexão", "error"); }
+        }
+
+        async function criarCampanha() {
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true; btn.classList.add('opacity-70', 'cursor-wait');
+            const formData = new FormData();
+            formData.append('nome', document.getElementById('campanha-nome').value);
+            formData.append('nome_arquivo', nomeArquivoAnalisado);
+            formData.append('mensagem', document.getElementById('campanha-mensagem').value);
+            formData.append('coluna_numero', document.getElementById('select-coluna-numero').value);
+            const dt = document.getElementById('campanha-data').value;
+            if(dt) formData.append('data_agendamento', dt.replace('T', ' ') + ':00');
+            let mapa = {}; colunasDetectadas.forEach(col => mapa[col] = col);
+            formData.append('variaveis_mapeamento', JSON.stringify(mapa));
+            const midia = document.getElementById('campanha-midia').files[0];
+            if(midia) formData.append('media', midia);
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/campanhas/criar`, { method: 'POST', body: formData });
+                const res = await response.json();
+                if(!res.erro) { showToast("Campanha Criada!"); fecharModalCampanha(); listarCampanhas(); } 
+                else { showToast(res.mensagem, "error"); }
+            } catch(e) { showToast("Erro conexão", "error"); }
+            finally { btn.disabled = false; btn.classList.remove('opacity-70', 'cursor-wait'); }
+        }
+
+        function inserirVariavel(col) { const t = document.getElementById('campanha-mensagem'); t.setRangeText(`{${col}}`, t.selectionStart, t.selectionEnd, 'end'); t.focus(); }
+        async function deletarCampanha(id) { if(confirm("Excluir?")) { await fetch(`${BASE_URL}/api/campanhas/${id}`, { method: 'DELETE' }); showToast("Excluída"); listarCampanhas(); } }
+        async function pausarCampanha(id) { await fetch(`${BASE_URL}/api/campanhas/${id}/pausar`, { method: 'PUT' }); showToast("Pausada"); listarCampanhas(); }
+        async function retomarCampanha(id) { showToast("Em breve"); }
+        function abrirModalCampanha() { document.getElementById('form-campaign').reset(); document.getElementById('config-section').classList.add('hidden'); document.getElementById('file-info').classList.add('hidden'); document.getElementById('upload-placeholder').classList.remove('hidden'); const m = document.getElementById('modal-create-campaign'); m.classList.remove('hidden'); setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('#modal-content').classList.remove('scale-95'); }, 10); }
+        function fecharModalCampanha() { const m = document.getElementById('modal-create-campaign'); m.classList.add('opacity-0'); m.querySelector('#modal-content').classList.add('scale-95'); setTimeout(() => m.classList.add('hidden'), 200); }
+        function atualizarStats(t,e,a,p) { document.getElementById('stat-total-campanhas').innerText=t; document.getElementById('stat-msgs-enviadas').innerText=e; document.getElementById('stat-agendadas').innerText=a; document.getElementById('stat-processando').innerText=p; }
+        function showToast(m,t='success'){const c=document.getElementById('toast-container'),d=document.createElement('div'),cl=t==='error'?'bg-red-500':'bg-green-500',i=t==='error'?'error':'check_circle';d.className=`${cl} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-bold flex items-center gap-2 transform transition-all translate-x-full`;d.innerHTML=`<span class="material-symbols-rounded">${i}</span> ${m}`;c.appendChild(d);setTimeout(()=>d.classList.remove('translate-x-full'),10);setTimeout(()=>d.remove(),4000);}
+    </script>
+</body>
+</html>

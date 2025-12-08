@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>NEXI CRM - Chatbot Automático</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+    <script src="../api_base/api.js"></script>
+    <script src="../api_base/Arsegury.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#2563eb", 
+                        'primary-dark': "#1d4ed8",
+                        secondary: "#f1f5f9",
+                        incoming: "#ffffff",
+                        outgoing: "#dbeafe",
+                        badge: "#25D366",
+                        danger: "#ef4444",
+                        warning: "#f59e0b"
+                    },
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif']
+                    },
+                    boxShadow: { 'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #cbd5e1; height: 100vh; overflow: hidden; }
+        
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 4px; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Toggle Switch Personalizado */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #2563eb;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body class="flex flex-col text-slate-800">
+
+    <div class="fixed top-0 w-full h-32 bg-primary z-0"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
+
+    <div class="relative z-10 container mx-auto h-full py-0 md:py-4 px-0 md:px-4 max-w-[1920px]">
+        <div class="bg-white md:rounded-xl shadow-2xl flex h-full overflow-hidden border border-slate-200">
+            
+            <div id="sidebar-container" class="w-full md:w-[300px] lg:w-[320px] hidden md:flex z-20"></div>
+
+            <main class="flex-1 flex flex-col bg-[#f0f4f8] relative overflow-hidden">
+                
+                <header class="h-20 px-8 flex items-center justify-between shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                            <span class="material-symbols-rounded text-primary">smart_toy</span> Chatbot & Automação
+                        </h1>
+                        <p class="text-sm text-slate-500">Configure respostas automáticas para palavras-chave.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="hidden md:flex items-center bg-slate-100 rounded-lg px-3 py-2 border border-slate-200 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                            <span class="material-symbols-rounded text-slate-400 text-sm">search</span>
+                            <input type="text" id="search-rules" placeholder="Buscar regra..." class="bg-transparent border-none text-sm ml-2 focus:ring-0 w-40 text-slate-600">
+                        </div>
+                        <button onclick="abrirModalRegra()" class="bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform hover:-translate-y-0.5">
+                            <span class="material-symbols-rounded">add_circle</span> Nova Regra
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex-1 overflow-y-auto custom-scroll p-8">
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-3">
+                            <div class="p-2 bg-white rounded-lg text-primary shadow-sm"><span class="material-symbols-rounded">rule</span></div>
+                            <div><p class="text-xs text-blue-600 font-bold uppercase">Total Regras</p><h4 class="text-xl font-black text-slate-800" id="stat-total">0</h4></div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-xl border border-green-100 flex items-center gap-3">
+                            <div class="p-2 bg-white rounded-lg text-green-600 shadow-sm"><span class="material-symbols-rounded">check_circle</span></div>
+                            <div><p class="text-xs text-green-600 font-bold uppercase">Ativas</p><h4 class="text-xl font-black text-slate-800" id="stat-ativas">0</h4></div>
+                        </div>
+                    </div>
+
+                    <div id="rules-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-10">
+                        <div class="col-span-full text-center py-20 opacity-50 flex flex-col items-center">
+                            <span class="material-symbols-rounded text-5xl mb-2 text-slate-300">hourglass_empty</span>
+                            <p class="text-slate-400">Carregando regras...</p>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="modal-rule" class="fixed inset-0 bg-slate-900/60 z-[90] hidden flex items-center justify-center backdrop-blur-sm p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-200" id="modal-content">
+            
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2" id="modal-title">
+                    <span class="material-symbols-rounded text-primary">bolt</span> Nova Regra
+                </h3>
+                <button onclick="fecharModalRegra()" class="text-slate-400 hover:text-red-500 transition-colors"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto custom-scroll max-h-[70vh]">
+                <form id="form-rule" onsubmit="event.preventDefault(); salvarRegra();" class="space-y-5">
+                    <input type="hidden" id="rule-id">
+                    
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Gatilho (Palavra-Chave)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-slate-400 text-sm font-mono">/</span>
+                            <input type="text" id="rule-trigger" class="w-full rounded-xl border-slate-300 pl-6 p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 font-bold text-slate-700" placeholder="ex: preco, cardapio" required>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">O bot responderá quando o cliente digitar exatamente isso.</p>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Resposta do Bot</label>
+                        <textarea id="rule-response" rows="4" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none" placeholder="Digite a mensagem de resposta..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase block mb-2 flex items-center gap-2">
+                            <span class="material-symbols-rounded text-sm">attach_file</span> Mídia (Opcional)
+                        </label>
+                        <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition cursor-pointer relative" onclick="document.getElementById('rule-file').click()">
+                            <input type="file" id="rule-file" class="hidden" onchange="atualizarNomeArquivo(this)">
+                            <div id="file-placeholder">
+                                <span class="material-symbols-rounded text-slate-400 text-2xl">cloud_upload</span>
+                                <p class="text-xs text-slate-500">Clique para enviar imagem/áudio/PDF</p>
+                            </div>
+                            <div id="file-name-display" class="hidden flex items-center justify-center gap-2 text-primary font-bold text-sm">
+                                <span class="material-symbols-rounded">check_circle</span> <span id="fname"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex justify-end gap-3 border-t border-slate-100">
+                        <button type="button" onclick="fecharModalRegra()" class="px-5 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition">Cancelar</button>
+                        <button type="submit" id="btn-submit" class="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                            <span>Salvar Regra</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="../api_base/menu.js"></script>
+
+    <script>
+        // O BASE_URL já vem do api.js, não redeclaro aqui para evitar o erro.
+        let regrasCache = [];
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // O menu.js já cuida da verificação de login
+            listarRegras();
+
+            // Filtro de Busca
+            document.getElementById('search-rules').addEventListener('input', (e) => {
+                const termo = e.target.value.toLowerCase();
+                const filtrados = regrasCache.filter(r => r.gatilho.toLowerCase().includes(termo) || (r.resposta && r.resposta.toLowerCase().includes(termo)));
+                renderizarRegras(filtrados);
+            });
+        });
+
+        // --- LISTAR REGRAS (API 33) ---
+        async function listarRegras() {
+            const grid = document.getElementById('rules-grid');
+            try {
+                const response = await fetch(`${BASE_URL}/api/mensagens`);
+                const data = await response.json();
+
+                if (!data.erro && data.dados) {
+                    regrasCache = data.dados;
+                    renderizarRegras(regrasCache);
+                    atualizarStats();
+                }
+            } catch (e) { console.error("Erro listagem", e); showToast("Erro ao carregar regras", "error"); }
+        }
+
+        function renderizarRegras(lista) {
+            const grid = document.getElementById('rules-grid');
+            
+            if(lista.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400 flex flex-col items-center"><span class="material-symbols-rounded text-5xl mb-2 text-slate-200">search_off</span><p>Nenhuma regra encontrada.</p></div>`;
+                return;
+            }
+
+            grid.innerHTML = '';
+            lista.forEach((r, index) => {
+                // Ícones por tipo
+                let typeIcon = 'description'; let typeColor = 'text-slate-500 bg-slate-100';
+                if(r.tipo_media === 'imagem') { typeIcon = 'image'; typeColor = 'text-pink-500 bg-pink-50'; }
+                if(r.tipo_media === 'audio') { typeIcon = 'mic'; typeColor = 'text-purple-500 bg-purple-50'; }
+                if(r.tipo_media === 'video') { typeIcon = 'movie'; typeColor = 'text-orange-500 bg-orange-50'; }
+
+                const opacity = r.ativo ? 'opacity-100' : 'opacity-60 grayscale';
+
+                grid.insertAdjacentHTML('beforeend', `
+                    <div class="bg-white p-5 rounded-2xl shadow-card border border-slate-100 relative fade-in group hover:shadow-lg transition-all ${opacity}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg ${typeColor} flex items-center justify-center border border-white shadow-sm">
+                                    <span class="material-symbols-rounded text-xl">${typeIcon}</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-sm truncate max-w-[120px]" title="${r.gatilho}">/${r.gatilho}</h3>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase">${r.tipo_media || 'Texto'}</p>
+                                </div>
+                            </div>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="toggle-${r.id}" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-slate-200 appearance-none cursor-pointer transition-all duration-300 ${r.ativo ? 'right-0 border-primary' : 'left-0'}" onclick="toggleStatus(${r.id}, ${r.ativo})" ${r.ativo ? 'checked' : ''}/>
+                                <label for="toggle-${r.id}" class="toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${r.ativo ? 'bg-primary' : 'bg-slate-200'}"></label>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4 h-20 overflow-hidden relative">
+                            <p class="text-xs text-slate-600 leading-relaxed">${r.resposta || '<i class="text-slate-400">Apenas mídia anexada.</i>'}</p>
+                            <div class="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-slate-50 to-transparent"></div>
+                        </div>
+
+                        <div class="flex justify-between items-center border-t border-slate-100 pt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editarRegra(${r.id})" class="text-slate-400 hover:text-primary text-xs font-bold flex items-center gap-1 transition"><span class="material-symbols-rounded text-sm">edit</span> Editar</button>
+                            <button onclick="deletarRegra(${r.id})" class="text-slate-400 hover:text-red-500 text-xs font-bold flex items-center gap-1 transition"><span class="material-symbols-rounded text-sm">delete</span> Excluir</button>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        // --- CRUD ACTIONS (APIs 34, 35, 36) ---
+        async function salvarRegra() {
+            const id = document.getElementById('rule-id').value;
+            const gatilho = document.getElementById('rule-trigger').value.trim();
+            const resposta = document.getElementById('rule-response').value.trim();
+            const file = document.getElementById('rule-file').files[0];
+            const btn = document.getElementById('btn-submit');
+
+            if(!gatilho) return showToast("Digite um gatilho", "error");
+
+            btn.disabled = true; btn.classList.add('opacity-70');
+
+            const formData = new FormData();
+            formData.append('gatilho', gatilho);
+            formData.append('resposta', resposta);
+            if(file) formData.append('arquivo', file);
+            
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${BASE_URL}/api/mensagens/${id}` : `${BASE_URL}/api/mensagens`;
+            
+            if(id) formData.append('ativo', 1); 
+
+            try {
+                const response = await fetch(url, { method: method, body: formData });
+                const res = await response.json();
+                if(!res.erro) {
+                    showToast(id ? "Regra atualizada!" : "Regra criada!");
+                    fecharModalRegra();
+                    listarRegras();
+                } else {
+                    showToast(res.mensagem || "Erro ao salvar", "error");
+                }
+            } catch(e) { showToast("Erro de conexão", "error"); }
+            finally { btn.disabled = false; btn.classList.remove('opacity-70'); }
+        }
+
+        async function deletarRegra(id) {
+            if(!confirm("Tem certeza que deseja excluir esta regra?")) return;
+            try {
+                await fetch(`${BASE_URL}/api/mensagens/${id}`, { method: 'DELETE' });
+                showToast("Regra excluída");
+                listarRegras();
+            } catch(e) { showToast("Erro ao excluir", "error"); }
+        }
+
+        async function toggleStatus(id, atual) {
+            const novoStatus = atual ? 0 : 1;
+            const formData = new FormData();
+            formData.append('ativo', novoStatus);
+            
+            // Re-envia dados antigos para o PUT não apagar (se a API exigir)
+            const regra = regrasCache.find(r => r.id == id);
+            if(regra) {
+                formData.append('gatilho', regra.gatilho);
+                formData.append('resposta', regra.resposta || "");
+            }
+
+            try {
+                await fetch(`${BASE_URL}/api/mensagens/${id}`, { method: 'PUT', body: formData });
+                listarRegras();
+            } catch(e) { showToast("Erro ao alterar status", "error"); }
+        }
+
+        function editarRegra(id) {
+            const regra = regrasCache.find(r => r.id == id);
+            if(!regra) return;
+
+            document.getElementById('rule-id').value = regra.id;
+            document.getElementById('rule-trigger').value = regra.gatilho;
+            document.getElementById('rule-response').value = regra.resposta;
+            document.getElementById('modal-title').innerHTML = `<span class="material-symbols-rounded text-primary">edit</span> Editar Regra`;
+            
+            document.getElementById('rule-file').value = "";
+            document.getElementById('file-placeholder').classList.remove('hidden');
+            document.getElementById('file-name-display').classList.add('hidden');
+
+            const modal = document.getElementById('modal-rule');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('#modal-content').classList.remove('scale-95'); }, 10);
+        }
+
+        // --- UI UTILS ---
+        function abrirModalRegra() {
+            document.getElementById('form-rule').reset();
+            document.getElementById('rule-id').value = "";
+            document.getElementById('modal-title').innerHTML = `<span class="material-symbols-rounded text-primary">bolt</span> Nova Regra`;
+            document.getElementById('file-placeholder').classList.remove('hidden');
+            document.getElementById('file-name-display').classList.add('hidden');
+            
+            const modal = document.getElementById('modal-rule');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('#modal-content').classList.remove('scale-95'); }, 10);
+        }
+
+        function fecharModalRegra() {
+            const modal = document.getElementById('modal-rule');
+            modal.classList.add('opacity-0'); modal.querySelector('#modal-content').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function atualizarNomeArquivo(input) {
+            if(input.files.length > 0) {
+                document.getElementById('file-placeholder').classList.add('hidden');
+                document.getElementById('file-name-display').classList.remove('hidden');
+                document.getElementById('file-name-display').classList.add('flex');
+                document.getElementById('fname').textContent = input.files[0].name;
+            }
+        }
+
+        function atualizarStats() {
+            document.getElementById('stat-total').innerText = regrasCache.length;
+            const ativas = regrasCache.filter(r => r.ativo == 1).length;
+            document.getElementById('stat-ativas').innerText = ativas;
+        }
+
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const color = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+            const icon = type === 'error' ? 'error' : 'check_circle';
+            toast.className = `${color} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-bold flex items-center gap-2 transform transition-all translate-x-full border border-white/20`;
+            toast.innerHTML = `<span class="material-symbols-rounded">${icon}</span> ${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+            setTimeout(() => toast.remove(), 4000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Configurações - NEXI CRM</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+    <script src="../api_base/api.js"></script>
+    <script src="../api_base/Arsegury.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#2563eb", 
+                        'primary-dark': "#1d4ed8",
+                        secondary: "#f1f5f9",
+                        danger: "#ef4444",
+                        success: "#10b981",
+                        warning: "#f59e0b"
+                    },
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif']
+                    },
+                    boxShadow: { 'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #cbd5e1; height: 100vh; overflow: hidden; }
+        
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 4px; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="flex flex-col text-slate-800">
+
+    <div class="fixed top-0 w-full h-32 bg-primary z-0"></div>
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
+
+    <div class="relative z-10 container mx-auto h-full py-0 md:py-4 px-0 md:px-4 max-w-[1920px]">
+        <div class="bg-white md:rounded-xl shadow-2xl flex h-full overflow-hidden border border-slate-200">
+            
+            <div id="sidebar-container" class="w-full md:w-[300px] lg:w-[320px] hidden md:flex z-20"></div>
+
+            <main class="flex-1 flex flex-col bg-[#f0f4f8] relative overflow-hidden">
+                
+                <header class="h-20 px-8 flex items-center justify-between shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                            <span class="material-symbols-rounded text-primary">settings</span> Configurações do Sistema
+                        </h1>
+                        <p class="text-sm text-slate-500">Gerencie a identidade do bot, backups e segurança.</p>
+                    </div>
+                </header>
+
+                <div class="flex-1 overflow-y-auto custom-scroll p-8">
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in">
+                            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-primary">
+                                    <span class="material-symbols-rounded">robot_2</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800">Identidade do Bot</h3>
+                                    <p class="text-xs text-slate-500">Como o bot se apresenta nas mensagens</p>
+                                </div>
+                            </div>
+
+                            <form onsubmit="event.preventDefault(); atualizarNomeBot();" class="space-y-4">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 uppercase mb-2 block">Nome de Exibição</label>
+                                    <input type="text" id="input-nome-bot" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium" placeholder="Carregando..." required>
+                                </div>
+                                <button type="submit" id="btn-salvar-nome" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold shadow-md transition-all flex justify-center items-center gap-2">
+                                    <span>Salvar Alterações</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in" style="animation-delay: 100ms;">
+                            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                                    <span class="material-symbols-rounded">health_and_safety</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-800">Status do Sistema</h3>
+                                    <p class="text-xs text-slate-500">Monitoramento em tempo real</p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span class="text-sm font-medium text-slate-600">Versão do Sistema</span>
+                                    <span class="text-sm font-bold text-primary bg-blue-50 px-2 py-1 rounded" id="sys-version">...</span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span class="text-sm font-medium text-slate-600">Conexão WhatsApp</span>
+                                    <span class="text-sm font-bold text-slate-400" id="sys-status">Verificando...</span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span class="text-sm font-medium text-slate-600">Última Verificação</span>
+                                    <span class="text-xs text-slate-400 font-mono" id="sys-time">...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in" style="animation-delay: 200ms;">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-slate-100 gap-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+                                        <span class="material-symbols-rounded">database</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-slate-800">Backups e Segurança</h3>
+                                        <p class="text-xs text-slate-500">Gerencie cópias de segurança do banco de dados</p>
+                                    </div>
+                                </div>
+                                <button onclick="criarBackup()" id="btn-criar-backup" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 text-sm">
+                                    <span class="material-symbols-rounded text-lg">save</span> Criar Novo Backup
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-500 uppercase mb-3">Histórico de Backups</h4>
+                                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 h-64 overflow-y-auto custom-scroll">
+                                        <ul id="lista-backups" class="divide-y divide-slate-200">
+                                            </ul>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-xs font-bold text-red-500 uppercase mb-3 flex items-center gap-1">
+                                        <span class="material-symbols-rounded text-sm">warning</span> Zona de Restauração
+                                    </h4>
+                                    <div class="border-2 border-dashed border-red-200 bg-red-50 rounded-xl p-6 text-center">
+                                        <span class="material-symbols-rounded text-4xl text-red-400 mb-2">history</span>
+                                        <h5 class="font-bold text-red-700 mb-1">Restaurar Banco de Dados</h5>
+                                        <p class="text-xs text-red-600/80 mb-4 px-4">
+                                            Isso irá substituir todos os dados atuais pelo backup selecionado. O sistema será reiniciado automaticamente.
+                                        </p>
+                                        
+                                        <form onsubmit="event.preventDefault(); restaurarBackup();" class="space-y-3">
+                                            <input type="file" id="arquivo-restore" accept=".db" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white file:text-red-600 hover:file:bg-red-100 cursor-pointer bg-white/50 rounded-lg border border-red-200">
+                                            <button type="submit" id="btn-restaurar" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold shadow-sm transition-all text-sm flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled>
+                                                <span class="material-symbols-rounded text-lg">settings_backup_restore</span> Restaurar Agora
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../api_base/menu.js"></script>
+
+    <script>
+        // BASE_URL vem do api.js
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Auth check via menu.js
+            carregarNomeBot();
+            checkHealth();
+            listarBackups();
+
+            // Enable Restore Button on File Select
+            document.getElementById('arquivo-restore').addEventListener('change', function() {
+                const btn = document.getElementById('btn-restaurar');
+                if(this.files.length > 0) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        });
+
+        // --- BOT NAME ---
+        async function carregarNomeBot() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/config/nome`);
+                const data = await res.json();
+                if(!data.erro) document.getElementById('input-nome-bot').value = data.nome;
+            } catch(e) { console.error(e); }
+        }
+
+        async function atualizarNomeBot() {
+            const nome = document.getElementById('input-nome-bot').value;
+            const btn = document.getElementById('btn-salvar-nome');
+            btn.disabled = true; btn.innerHTML = `<span class="material-symbols-rounded animate-spin">sync</span> Salvando...`;
+            
+            try {
+                await fetch(`${BASE_URL}/api/config/nome`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nome}) });
+                showToast("Nome do Bot atualizado!");
+            } catch(e) { showToast("Erro ao atualizar", 'error'); }
+            finally { btn.disabled = false; btn.innerHTML = `<span>Salvar Alterações</span>`; }
+        }
+
+        // --- HEALTH CHECK ---
+        async function checkHealth() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/health`);
+                const data = await res.json();
+                if(!data.erro) {
+                    document.getElementById('sys-version').textContent = data.versao;
+                    const st = document.getElementById('sys-status');
+                    st.textContent = data.whatsapp.status;
+                    st.className = data.whatsapp.conectado ? "text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded" : "text-sm font-bold text-red-600 bg-red-50 px-2 py-1 rounded";
+                    document.getElementById('sys-time').textContent = new Date(data.timestamp).toLocaleString();
+                }
+            } catch(e) {}
+        }
+
+        // --- BACKUPS ---
+        async function listarBackups() {
+            const lista = document.getElementById('lista-backups');
+            try {
+                const res = await fetch(`${BASE_URL}/api/backups`);
+                const data = await res.json();
+                
+                if(!data.erro && data.dados) {
+                    lista.innerHTML = '';
+                    if(data.dados.length === 0) {
+                        lista.innerHTML = `<li class="p-4 text-center text-slate-400 text-xs">Nenhum backup encontrado.</li>`;
+                        return;
+                    }
+
+                    data.dados.forEach(b => {
+                        const size = (b.tamanho / 1024 / 1024).toFixed(2) + ' MB';
+                        const date = new Date(b.data).toLocaleDateString() + ' ' + new Date(b.data).toLocaleTimeString();
+                        
+                        const html = `
+                            <li class="p-3 flex justify-between items-center hover:bg-white transition group">
+                                <div class="flex items-center gap-3 overflow-hidden">
+                                    <div class="bg-purple-50 text-purple-600 p-2 rounded-lg"><span class="material-symbols-rounded">description</span></div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-slate-700 truncate" title="${b.nome}">${b.nome}</p>
+                                        <p class="text-[10px] text-slate-500">${date} • ${size}</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-1 opacity-60 group-hover:opacity-100 transition">
+                                    <a href="${BASE_URL}/api/backups/download/${b.nome}" target="_blank" class="p-1.5 hover:bg-blue-50 text-primary rounded-lg" title="Baixar"><span class="material-symbols-rounded">download</span></a>
+                                    <button onclick="deletarBackup('${b.nome}')" class="p-1.5 hover:bg-red-50 text-red-500 rounded-lg" title="Excluir"><span class="material-symbols-rounded">delete</span></button>
+                                </div>
+                            </li>
+                        `;
+                        lista.insertAdjacentHTML('beforeend', html);
+                    });
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function criarBackup() {
+            const btn = document.getElementById('btn-criar-backup');
+            btn.disabled = true; btn.innerHTML = `<span class="material-symbols-rounded animate-spin">sync</span> Criando...`;
+            try {
+                const res = await fetch(`${BASE_URL}/api/backups`, {method:'POST'});
+                const data = await res.json();
+                if(!data.erro) { showToast("Backup criado com sucesso!"); listarBackups(); }
+                else showToast("Erro ao criar backup", 'error');
+            } catch(e) { showToast("Erro de conexão", 'error'); }
+            finally { btn.disabled = false; btn.innerHTML = `<span class="material-symbols-rounded text-lg">save</span> Criar Novo Backup`; }
+        }
+
+        async function deletarBackup(arquivo) {
+            if(!confirm("Tem certeza que deseja excluir este backup permanentemente?")) return;
+            try {
+                await fetch(`${BASE_URL}/api/backups/${arquivo}`, {method:'DELETE'});
+                showToast("Backup excluído.");
+                listarBackups();
+            } catch(e) { showToast("Erro ao excluir", 'error'); }
+        }
+
+        async function restaurarBackup() {
+            if(!confirm("⚠️ PERIGO: Isso irá apagar TODOS os dados atuais e restaurar o backup selecionado. O sistema será reiniciado.\n\nDeseja continuar?")) return;
+            
+            const file = document.getElementById('arquivo-restore').files[0];
+            const formData = new FormData();
+            formData.append('backup', file);
+            
+            const btn = document.getElementById('btn-restaurar');
+            btn.disabled = true; btn.innerHTML = "Restaurando... (Aguarde)";
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/backups/restore`, {method:'POST', body: formData});
+                const data = await res.json();
+                if(!data.erro) {
+                    alert("Backup restaurado com sucesso! O sistema está reiniciando. A página será recarregada.");
+                    setTimeout(() => window.location.reload(), 3000);
+                } else {
+                    showToast(data.mensagem || "Erro na restauração", 'error');
+                    btn.disabled = false; btn.innerHTML = `<span class="material-symbols-rounded text-lg">settings_backup_restore</span> Restaurar Agora`;
+                }
+            } catch(e) { showToast("Erro crítico de conexão", 'error'); btn.disabled = false; }
+        }
+
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const color = type === 'error' ? 'bg-red-500' : 'bg-green-500';
+            const icon = type === 'error' ? 'error' : 'check_circle';
+            toast.className = `${color} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-bold flex items-center gap-2 transform transition-all translate-x-full border border-white/20`;
+            toast.innerHTML = `<span class="material-symbols-rounded">${icon}</span> ${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+            setTimeout(() => toast.remove(), 4000);
+        }
+    </script>
+</body>
+</html>
