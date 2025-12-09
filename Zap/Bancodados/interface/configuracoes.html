@@ -28,7 +28,7 @@
                         sans: ['Inter', 'sans-serif'],
                         display: ['Poppins', 'sans-serif']
                     },
-                    boxShadow: { 'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }
+                    boxShadow: { 'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }
                 }
             }
         }
@@ -36,13 +36,12 @@
 
     <style>
         body { background-color: #cbd5e1; height: 100vh; overflow: hidden; }
-        
-        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #94a3b8; border-radius: 4px; }
-        
         .fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
     </style>
 </head>
 <body class="flex flex-col text-slate-800">
@@ -60,259 +59,533 @@
                 <header class="h-20 px-8 flex items-center justify-between shrink-0 bg-white border-b border-slate-200 shadow-sm z-10">
                     <div>
                         <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-                            <span class="material-symbols-rounded text-primary">settings</span> Configurações do Sistema
+                            <span class="material-symbols-rounded text-primary">settings_applications</span> Configurações & API
                         </h1>
-                        <p class="text-sm text-slate-500">Gerencie a identidade do bot, backups e segurança.</p>
+                        <p class="text-sm text-slate-500">Gerencie bot, backups e integrações via Webhook.</p>
                     </div>
                 </header>
 
                 <div class="flex-1 overflow-y-auto custom-scroll p-8">
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in">
                             <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                                <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-primary">
-                                    <span class="material-symbols-rounded">robot_2</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800">Identidade do Bot</h3>
-                                    <p class="text-xs text-slate-500">Como o bot se apresenta nas mensagens</p>
-                                </div>
+                                <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-primary"><span class="material-symbols-rounded">robot_2</span></div>
+                                <div><h3 class="font-bold text-slate-800">Identidade do Bot</h3><p class="text-xs text-slate-500">Nome de exibição nas mensagens</p></div>
                             </div>
-
                             <form onsubmit="event.preventDefault(); atualizarNomeBot();" class="space-y-4">
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 uppercase mb-2 block">Nome de Exibição</label>
-                                    <input type="text" id="input-nome-bot" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium" placeholder="Carregando..." required>
-                                </div>
-                                <button type="submit" id="btn-salvar-nome" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold shadow-md transition-all flex justify-center items-center gap-2">
-                                    <span>Salvar Alterações</span>
-                                </button>
+                                <input type="text" id="input-nome-bot" class="w-full rounded-xl border-slate-300 p-3 text-sm focus:border-primary" placeholder="Carregando..." required>
+                                <button type="submit" id="btn-salvar-nome" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-bold shadow-md transition-all">Salvar Alterações</button>
                             </form>
                         </div>
 
                         <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in" style="animation-delay: 100ms;">
                             <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                    <span class="material-symbols-rounded">health_and_safety</span>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800">Status do Sistema</h3>
-                                    <p class="text-xs text-slate-500">Monitoramento em tempo real</p>
-                                </div>
+                                <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center text-green-600"><span class="material-symbols-rounded">health_and_safety</span></div>
+                                <div><h3 class="font-bold text-slate-800">Status do Sistema</h3><p class="text-xs text-slate-500">Monitoramento em tempo real</p></div>
                             </div>
-
                             <div class="space-y-4">
-                                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                    <span class="text-sm font-medium text-slate-600">Versão do Sistema</span>
-                                    <span class="text-sm font-bold text-primary bg-blue-50 px-2 py-1 rounded" id="sys-version">...</span>
-                                </div>
-                                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                    <span class="text-sm font-medium text-slate-600">Conexão WhatsApp</span>
-                                    <span class="text-sm font-bold text-slate-400" id="sys-status">Verificando...</span>
-                                </div>
-                                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                    <span class="text-sm font-medium text-slate-600">Última Verificação</span>
-                                    <span class="text-xs text-slate-400 font-mono" id="sys-time">...</span>
-                                </div>
+                                <div class="flex justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"><span class="text-sm font-medium text-slate-600">Versão</span><span class="text-sm font-bold text-primary bg-blue-50 px-2 py-1 rounded" id="sys-version">...</span></div>
+                                <div class="flex justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"><span class="text-sm font-medium text-slate-600">WhatsApp</span><span class="text-sm font-bold text-slate-400" id="sys-status">Verificando...</span></div>
                             </div>
                         </div>
-
-                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in" style="animation-delay: 200ms;">
-                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-slate-100 gap-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                                        <span class="material-symbols-rounded">database</span>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-slate-800">Backups e Segurança</h3>
-                                        <p class="text-xs text-slate-500">Gerencie cópias de segurança do banco de dados</p>
-                                    </div>
-                                </div>
-                                <button onclick="criarBackup()" id="btn-criar-backup" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 text-sm">
-                                    <span class="material-symbols-rounded text-lg">save</span> Criar Novo Backup
-                                </button>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                    <h4 class="text-xs font-bold text-slate-500 uppercase mb-3">Histórico de Backups</h4>
-                                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 h-64 overflow-y-auto custom-scroll">
-                                        <ul id="lista-backups" class="divide-y divide-slate-200">
-                                            </ul>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 class="text-xs font-bold text-red-500 uppercase mb-3 flex items-center gap-1">
-                                        <span class="material-symbols-rounded text-sm">warning</span> Zona de Restauração
-                                    </h4>
-                                    <div class="border-2 border-dashed border-red-200 bg-red-50 rounded-xl p-6 text-center">
-                                        <span class="material-symbols-rounded text-4xl text-red-400 mb-2">history</span>
-                                        <h5 class="font-bold text-red-700 mb-1">Restaurar Banco de Dados</h5>
-                                        <p class="text-xs text-red-600/80 mb-4 px-4">
-                                            Isso irá substituir todos os dados atuais pelo backup selecionado. O sistema será reiniciado automaticamente.
-                                        </p>
-                                        
-                                        <form onsubmit="event.preventDefault(); restaurarBackup();" class="space-y-3">
-                                            <input type="file" id="arquivo-restore" accept=".db" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white file:text-red-600 hover:file:bg-red-100 cursor-pointer bg-white/50 rounded-lg border border-red-200">
-                                            <button type="submit" id="btn-restaurar" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold shadow-sm transition-all text-sm flex items-center justify-center gap-2 opacity-50 cursor-not-allowed" disabled>
-                                                <span class="material-symbols-rounded text-lg">settings_backup_restore</span> Restaurar Agora
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in mb-8" style="animation-delay: 150ms;">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-slate-100 gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600"><span class="material-symbols-rounded">webhook</span></div>
+                                <div><h3 class="font-bold text-slate-800">Webhooks & API</h3><p class="text-xs text-slate-500">Integração e fila de mensagens</p></div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="atualizarDadosWebhook()" class="text-slate-500 hover:text-primary p-2 rounded-full hover:bg-slate-100" title="Atualizar"><span class="material-symbols-rounded">refresh</span></button>
+                                <button onclick="abrirModalWebhookTeste()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 text-sm"><span class="material-symbols-rounded">send</span> Testar Envio</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+                                <p class="text-xs text-slate-500 uppercase font-bold">Fila (Pend)</p>
+                                <p class="text-xl font-black text-slate-700" id="wh-pendentes">0</p>
+                            </div>
+                            <div class="bg-green-50 p-3 rounded-xl border border-green-200 text-center">
+                                <p class="text-xs text-green-600 uppercase font-bold">Enviados</p>
+                                <p class="text-xl font-black text-green-700" id="wh-enviados">0</p>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-xl border border-red-200 text-center">
+                                <p class="text-xs text-red-600 uppercase font-bold">Erros/Falhas</p>
+                                <p class="text-xl font-black text-red-700" id="wh-erros">0</p>
+                            </div>
+                            <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
+                                <p class="text-xs text-primary uppercase font-bold">Total (7d)</p>
+                                <p class="text-xl font-black text-primary" id="wh-total">0</p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-xl border border-slate-200">
+                            <table class="w-full text-sm text-left text-slate-600">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-4 py-3">ID / Data</th>
+                                        <th class="px-4 py-3">Destino</th>
+                                        <th class="px-4 py-3">Tipo</th>
+                                        <th class="px-4 py-3">Status</th>
+                                        <th class="px-4 py-3 text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-webhooks">
+                                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400"><span class="material-symbols-rounded animate-spin text-2xl">donut_large</span><br>Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-card border border-slate-100 fade-in" style="animation-delay: 200ms;">
+                        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600"><span class="material-symbols-rounded">database</span></div>
+                                <div><h3 class="font-bold text-slate-800">Backups</h3><p class="text-xs text-slate-500">Segurança de dados</p></div>
+                            </div>
+                            <button onclick="criarBackup()" id="btn-criar-backup" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 text-sm"><span class="material-symbols-rounded">save</span> Novo Backup</button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 h-56 overflow-y-auto custom-scroll">
+                                <ul id="lista-backups" class="divide-y divide-slate-200"></ul>
+                            </div>
+                            <div class="border-2 border-dashed border-red-200 bg-red-50 rounded-xl p-6 text-center">
+                                <h5 class="font-bold text-red-700 mb-2">Restaurar Dados</h5>
+                                <p class="text-xs text-red-600/80 mb-4">Isso substituirá o banco atual. Cuidado.</p>
+                                <form onsubmit="event.preventDefault(); restaurarBackup();" class="space-y-3">
+                                    <input type="file" id="arquivo-restore" accept=".db" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white file:text-red-600 hover:file:bg-red-100 cursor-pointer bg-white/50 rounded-lg border border-red-200">
+                                    <button type="submit" id="btn-restaurar" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold shadow-sm transition-all text-sm opacity-50 cursor-not-allowed" disabled>Restaurar Agora</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </main>
+        </div>
+    </div>
+
+    <div id="modal-webhook-teste" class="fixed inset-0 bg-slate-900/60 z-[95] hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="bg-slate-50 px-6 py-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-slate-800">Testar Webhook</h3>
+                <button onclick="document.getElementById('modal-webhook-teste').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div class="p-6">
+                <form onsubmit="event.preventDefault(); enviarWebhookTeste();" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Número (com DDI e DDD)</label>
+                        <input type="text" id="wh-numero" placeholder="ex: 5511999998888" class="w-full rounded-lg border-slate-300 text-sm p-2 focus:border-orange-500 focus:ring-orange-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Mensagem</label>
+                        <textarea id="wh-mensagem" rows="3" placeholder="Mensagem de teste..." class="w-full rounded-lg border-slate-300 text-sm p-2 resize-none focus:border-orange-500 focus:ring-orange-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Metadata (JSON Opcional)</label>
+                        <textarea id="wh-metadata" rows="2" placeholder='{"id_pedido": 123}' class="w-full rounded-lg border-slate-300 text-sm p-2 font-mono text-xs focus:border-orange-500 focus:ring-orange-500"></textarea>
+                    </div>
+                    <div class="border border-dashed border-slate-300 rounded-lg p-3 bg-slate-50">
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">Anexo (Opcional)</label>
+                        <input type="file" id="wh-arquivo" class="text-xs text-slate-500 w-full">
+                    </div>
+                    <button type="submit" id="btn-wh-send" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold shadow-md transition-all">Enviar Webhook</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-webhook-detalhes" class="fixed inset-0 bg-slate-900/60 z-[95] hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="bg-slate-50 px-6 py-4 border-b flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <span class="material-symbols-rounded text-orange-500">info</span> Detalhes do Webhook
+                </h3>
+                <button onclick="document.getElementById('modal-webhook-detalhes').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div class="p-0 overflow-y-auto custom-scroll flex-1 bg-slate-50">
+                <div id="wh-detalhes-body" class="p-6 space-y-4">
+                    </div>
+            </div>
         </div>
     </div>
 
     <script src="../api_base/menu.js"></script>
 
     <script>
-        // BASE_URL vem do api.js
+        // CONFIGURAÇÃO INICIAL
+        // const BASE_URL = 'http://localhost:3000'; // Caso não venha do api.js
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Auth check via menu.js
+            // Carregamentos iniciais
             carregarNomeBot();
             checkHealth();
             listarBackups();
+            atualizarDadosWebhook();
 
-            // Enable Restore Button on File Select
+            // Listeners
             document.getElementById('arquivo-restore').addEventListener('change', function() {
                 const btn = document.getElementById('btn-restaurar');
-                if(this.files.length > 0) {
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                } else {
-                    btn.disabled = true;
-                    btn.classList.add('opacity-50', 'cursor-not-allowed');
-                }
+                if(this.files.length > 0) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+                else { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
             });
+
+            // Auto-refresh inteligente (a cada 10s para não sobrecarregar)
+            setInterval(atualizarDadosWebhook, 10000);
         });
 
-        // --- BOT NAME ---
-        async function carregarNomeBot() {
-            try {
-                const res = await fetch(`${BASE_URL}/api/config/nome`);
-                const data = await res.json();
-                if(!data.erro) document.getElementById('input-nome-bot').value = data.nome;
-            } catch(e) { console.error(e); }
+        // --- FUNÇÃO MESTRA DE ATUALIZAÇÃO ---
+        function atualizarDadosWebhook() {
+            carregarEstatisticasWebhook();
+            listarHistoricoWebhooks();
         }
 
+        // --- 1. ESTATÍSTICAS (GET /api/webhook/estatisticas) ---
+        async function carregarEstatisticasWebhook() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/webhook/estatisticas?periodo=7`);
+                const json = await res.json();
+                
+                if (!json.erro && json.dados) {
+                    const d = json.dados;
+                    
+                    // Atualiza contadores
+                    document.getElementById('wh-pendentes').textContent = d.pendentes || 0;
+                    document.getElementById('wh-enviados').textContent = d.enviados || 0;
+                    
+                    // Soma erros + falhas
+                    const totalErros = (d.erros || 0) + (d.falhou || 0);
+                    document.getElementById('wh-erros').textContent = totalErros;
+                    
+                    document.getElementById('wh-total').textContent = d.periodo || d.total || 0;
+                }
+            } catch (e) {
+                console.error("Erro stats:", e);
+            }
+        }
+
+        // --- 2. HISTÓRICO (GET /api/webhook/historico) ---
+        async function listarHistoricoWebhooks() {
+            const tbody = document.getElementById('tabela-webhooks');
+            try {
+                const res = await fetch(`${BASE_URL}/api/webhook/historico?limit=10&offset=0`);
+                const json = await res.json();
+                
+                if (!json.erro && json.dados && Array.isArray(json.dados)) {
+                    tbody.innerHTML = '';
+                    
+                    if (json.dados.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Nenhum webhook recente.</td></tr>';
+                        return;
+                    }
+
+                    json.dados.forEach(wh => {
+                        // Cores e Ícones baseados no Status
+                        let statusConfig = { class: 'bg-slate-100 text-slate-600', icon: 'hourglass_empty', label: wh.status };
+                        
+                        switch(wh.status) {
+                            case 'ENVIADO':
+                            case 'SUCESSO':
+                                statusConfig = { class: 'bg-green-100 text-green-700', icon: 'check_circle', label: 'ENVIADO' };
+                                break;
+                            case 'PENDENTE':
+                            case 'CRIADO':
+                            case 'PROCESSANDO':
+                                statusConfig = { class: 'bg-amber-100 text-amber-700', icon: 'schedule', label: 'PENDENTE' };
+                                break;
+                            case 'ERRO':
+                            case 'FALHOU':
+                                statusConfig = { class: 'bg-red-100 text-red-700', icon: 'error', label: 'ERRO' };
+                                break;
+                        }
+
+                        // Formatação de Data
+                        const dataCriacao = new Date(wh.data_criacao);
+                        const dataFmt = isNaN(dataCriacao) ? '--/--' : dataCriacao.toLocaleDateString() + ' ' + dataCriacao.toLocaleTimeString().slice(0,5);
+                        const idShort = wh.id ? wh.id.slice(-6) : '???';
+
+                        // Ações Dinâmicas
+                        let botoesAcao = `
+                            <button onclick="verDetalhesWebhook('${wh.id}')" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition" title="Ver Detalhes">
+                                <span class="material-symbols-rounded text-lg">visibility</span>
+                            </button>
+                        `;
+
+                        if (wh.status === 'ERRO' || wh.status === 'FALHOU') {
+                            botoesAcao += `
+                                <button onclick="retentarWebhook('${wh.id}')" class="text-orange-500 hover:bg-orange-50 p-1.5 rounded-lg transition" title="Tentar Novamente">
+                                    <span class="material-symbols-rounded text-lg">replay</span>
+                                </button>
+                            `;
+                        }
+
+                        if (wh.status === 'PENDENTE' || wh.status === 'CRIADO') {
+                            botoesAcao += `
+                                <button onclick="deletarWebhook('${wh.id}')" class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition" title="Cancelar Envio">
+                                    <span class="material-symbols-rounded text-lg">delete</span>
+                                </button>
+                            `;
+                        }
+
+                        // Ícone do Tipo
+                        let tipoIcon = 'chat';
+                        if(wh.tipo_mensagem === 'imagem') tipoIcon = 'image';
+                        if(wh.tipo_mensagem === 'audio') tipoIcon = 'mic';
+                        if(wh.tipo_mensagem === 'pdf' || wh.tipo_mensagem === 'documento') tipoIcon = 'description';
+
+                        const row = `
+                            <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0 transition group">
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-col">
+                                        <span class="font-mono text-[10px] text-slate-400 uppercase">#${idShort}</span>
+                                        <span class="text-xs font-medium text-slate-600">${dataFmt}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 font-mono text-xs font-bold text-slate-700">${wh.numero}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-1 text-xs text-slate-500 uppercase font-bold">
+                                        <span class="material-symbols-rounded text-base">${tipoIcon}</span> ${wh.tipo_mensagem || 'texto'}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase ${statusConfig.class}">
+                                        <span class="material-symbols-rounded text-xs">${statusConfig.icon}</span> ${statusConfig.label}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex justify-end gap-1 opacity-80 group-hover:opacity-100">
+                                        ${botoesAcao}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        tbody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-red-400">Erro de conexão.</td></tr>';
+            }
+        }
+
+        // --- 3. ENVIAR WEBHOOK (POST /api/webhook/enviar) ---
+        function abrirModalWebhookTeste() { document.getElementById('modal-webhook-teste').classList.remove('hidden'); }
+        
+        async function enviarWebhookTeste() {
+            const btn = document.getElementById('btn-wh-send');
+            const originalText = btn.textContent;
+            btn.disabled = true; 
+            btn.innerHTML = `<span class="material-symbols-rounded animate-spin text-sm">sync</span> Enviando...`;
+            
+            try {
+                const formData = new FormData();
+                const numero = document.getElementById('wh-numero').value;
+                const mensagem = document.getElementById('wh-mensagem').value;
+                const metadata = document.getElementById('wh-metadata').value;
+                const arquivo = document.getElementById('wh-arquivo').files[0];
+
+                if(!numero) throw new Error("Número é obrigatório");
+
+                formData.append('numero', numero);
+                if(mensagem) formData.append('mensagem', mensagem);
+                
+                // Validação JSON simples
+                if(metadata) {
+                    try { JSON.parse(metadata); formData.append('metadata', metadata); }
+                    catch(e) { throw new Error("Metadata inválido (deve ser JSON)"); }
+                }
+
+                if(arquivo) formData.append('arquivo', arquivo);
+
+                const res = await fetch(`${BASE_URL}/api/webhook/enviar`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const json = await res.json();
+
+                if(!json.erro) {
+                    showToast("Webhook enviado para fila!");
+                    document.getElementById('modal-webhook-teste').classList.add('hidden');
+                    // Limpar form
+                    document.getElementById('wh-numero').value = '';
+                    document.getElementById('wh-mensagem').value = '';
+                    document.getElementById('wh-metadata').value = '';
+                    document.getElementById('wh-arquivo').value = '';
+                    
+                    atualizarDadosWebhook();
+                } else {
+                    showToast(json.mensagem, 'error');
+                }
+
+            } catch(e) {
+                showToast(e.message || "Erro ao conectar", 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        // --- 4. DETALHES (GET /api/webhook/status/:id) ---
+        async function verDetalhesWebhook(id) {
+            const container = document.getElementById('wh-detalhes-body');
+            container.innerHTML = '<div class="text-center p-8"><span class="material-symbols-rounded animate-spin text-3xl text-primary">donut_large</span></div>';
+            document.getElementById('modal-webhook-detalhes').classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/webhook/status/${id}`);
+                const json = await res.json();
+
+                if(!json.erro && json.dados) {
+                    const d = json.dados;
+                    
+                    // Renderizar Logs
+                    let logsHtml = '';
+                    if(d.logs && Array.isArray(d.logs)) {
+                        logsHtml = d.logs.map(log => `
+                            <li class="mb-4 ml-4">
+                                <div class="absolute w-3 h-3 bg-slate-200 rounded-full mt-1.5 -left-1.5 border border-white"></div>
+                                <time class="mb-1 text-xs font-normal text-slate-400 font-mono">${new Date(log.data_hora).toLocaleString()}</time>
+                                <h3 class="text-sm font-semibold text-slate-800">${log.status}</h3>
+                                <p class="text-xs text-slate-500">${log.mensagem || ''}</p>
+                            </li>
+                        `).join('');
+                    }
+
+                    container.innerHTML = `
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div class="bg-white p-3 border rounded-lg">
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">ID Webhook</p>
+                                <p class="text-xs font-mono text-slate-700 break-all">${d.id}</p>
+                            </div>
+                             <div class="bg-white p-3 border rounded-lg">
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">Status Atual</p>
+                                <p class="text-sm font-bold text-slate-800">${d.status}</p>
+                            </div>
+                            <div class="bg-white p-3 border rounded-lg">
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">Número Destino</p>
+                                <p class="text-sm font-mono text-slate-700">${d.numero}</p>
+                            </div>
+                            <div class="bg-white p-3 border rounded-lg">
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">Tipo Mensagem</p>
+                                <p class="text-sm text-slate-700 capitalize">${d.tipo_mensagem}</p>
+                            </div>
+                        </div>
+
+                        ${d.mensagem ? `
+                        <div class="mb-4">
+                            <p class="text-xs font-bold text-slate-500 mb-1">Mensagem de Texto</p>
+                            <div class="bg-slate-100 p-3 rounded-lg text-sm text-slate-700 whitespace-pre-wrap font-sans border border-slate-200">${d.mensagem}</div>
+                        </div>` : ''}
+
+                        ${d.metadata ? `
+                        <div class="mb-4">
+                            <p class="text-xs font-bold text-slate-500 mb-1">Metadata (JSON)</p>
+                            <pre class="bg-slate-800 text-green-400 p-3 rounded-lg text-xs overflow-x-auto">${typeof d.metadata === 'string' ? d.metadata : JSON.stringify(d.metadata, null, 2)}</pre>
+                        </div>` : ''}
+
+                        ${d.erro ? `
+                        <div class="mb-4 bg-red-50 border border-red-100 p-3 rounded-lg">
+                            <p class="text-xs font-bold text-red-600 mb-1 flex items-center gap-1"><span class="material-symbols-rounded text-sm">error</span> Erro Registrado</p>
+                            <p class="text-sm text-red-700">${d.erro}</p>
+                        </div>` : ''}
+
+                        ${logsHtml ? `
+                        <div class="mt-6 pt-4 border-t border-slate-200">
+                            <p class="text-xs font-bold text-slate-500 mb-4">Linha do Tempo (Logs)</p>
+                            <ol class="relative border-l border-slate-200">${logsHtml}</ol>
+                        </div>` : ''}
+                    `;
+                } else {
+                    container.innerHTML = `<div class="text-center text-red-500 py-4">${json.mensagem || 'Erro ao carregar'}</div>`;
+                }
+            } catch(e) {
+                container.innerHTML = `<div class="text-center text-red-500 py-4">Falha na conexão</div>`;
+            }
+        }
+
+        // --- 5. RETENTAR (PUT /api/webhook/:id/retentar) ---
+        async function retentarWebhook(id) {
+            if(!confirm("Deseja reenviar este webhook?")) return;
+            try {
+                const res = await fetch(`${BASE_URL}/api/webhook/${id}/retentar`, { method: 'PUT' });
+                const json = await res.json();
+                if(!json.erro) {
+                    showToast("Marcado para reenvio");
+                    atualizarDadosWebhook();
+                } else {
+                    showToast(json.mensagem, 'error');
+                }
+            } catch(e) { showToast("Erro de conexão", 'error'); }
+        }
+
+        // --- 6. DELETAR (DELETE /api/webhook/:id) ---
+        async function deletarWebhook(id) {
+            if(!confirm("Deseja cancelar/remover este webhook da fila?")) return;
+            try {
+                const res = await fetch(`${BASE_URL}/api/webhook/${id}`, { method: 'DELETE' });
+                const json = await res.json();
+                if(!json.erro) {
+                    showToast("Webhook removido");
+                    atualizarDadosWebhook();
+                } else {
+                    showToast(json.mensagem, 'error');
+                }
+            } catch(e) { showToast("Erro de conexão", 'error'); }
+        }
+
+        // --- OUTRAS FUNÇÕES (BOT, HEALTH, BACKUP) ---
+        async function carregarNomeBot() { try { const res = await fetch(`${BASE_URL}/api/config/nome`); const data = await res.json(); if(!data.erro) document.getElementById('input-nome-bot').value = data.nome; } catch(e){} }
+        
         async function atualizarNomeBot() {
             const nome = document.getElementById('input-nome-bot').value;
             const btn = document.getElementById('btn-salvar-nome');
-            btn.disabled = true; btn.innerHTML = `<span class="material-symbols-rounded animate-spin">sync</span> Salvando...`;
-            
-            try {
-                await fetch(`${BASE_URL}/api/config/nome`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nome}) });
-                showToast("Nome do Bot atualizado!");
-            } catch(e) { showToast("Erro ao atualizar", 'error'); }
-            finally { btn.disabled = false; btn.innerHTML = `<span>Salvar Alterações</span>`; }
+            btn.disabled = true; btn.textContent = "Salvando...";
+            try { await fetch(`${BASE_URL}/api/config/nome`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nome}) }); showToast("Nome atualizado!"); } catch(e) { showToast("Erro", 'error'); }
+            finally { btn.disabled = false; btn.textContent = "Salvar Alterações"; }
         }
-
-        // --- HEALTH CHECK ---
-        async function checkHealth() {
+        
+        async function checkHealth() { try { const res = await fetch(`${BASE_URL}/api/health`); const data = await res.json(); if(!data.erro) { document.getElementById('sys-version').textContent = data.versao; const st = document.getElementById('sys-status'); st.textContent = data.whatsapp.status; st.className = data.whatsapp.conectado ? "text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded" : "text-sm font-bold text-red-600 bg-red-50 px-2 py-1 rounded"; } } catch(e){} }
+        
+        async function listarBackups() {
+            const lista = document.getElementById('lista-backups');
             try {
-                const res = await fetch(`${BASE_URL}/api/health`);
-                const data = await res.json();
-                if(!data.erro) {
-                    document.getElementById('sys-version').textContent = data.versao;
-                    const st = document.getElementById('sys-status');
-                    st.textContent = data.whatsapp.status;
-                    st.className = data.whatsapp.conectado ? "text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded" : "text-sm font-bold text-red-600 bg-red-50 px-2 py-1 rounded";
-                    document.getElementById('sys-time').textContent = new Date(data.timestamp).toLocaleString();
+                const res = await fetch(`${BASE_URL}/api/backups`); const data = await res.json();
+                if(!data.erro && data.dados) {
+                    lista.innerHTML = '';
+                    if(data.dados.length === 0) { lista.innerHTML = `<li class="p-4 text-center text-slate-400 text-xs">Nenhum backup.</li>`; return; }
+                    data.dados.forEach(b => {
+                        const size = (b.tamanho / 1024 / 1024).toFixed(2) + ' MB';
+                        const date = new Date(b.data).toLocaleDateString() + ' ' + new Date(b.data).toLocaleTimeString();
+                        lista.insertAdjacentHTML('beforeend', `<li class="p-3 flex justify-between items-center hover:bg-white transition group"><div class="flex items-center gap-3 overflow-hidden"><div class="bg-purple-50 text-purple-600 p-2 rounded-lg"><span class="material-symbols-rounded">description</span></div><div class="min-w-0"><p class="text-sm font-bold text-slate-700 truncate" title="${b.nome}">${b.nome}</p><p class="text-[10px] text-slate-500">${date} • ${size}</p></div></div><div class="flex gap-1 opacity-60 group-hover:opacity-100 transition"><a href="${BASE_URL}/api/backups/download/${b.nome}" target="_blank" class="p-1.5 hover:bg-blue-50 text-primary rounded-lg" title="Baixar"><span class="material-symbols-rounded">download</span></a><button onclick="deletarBackup('${b.nome}')" class="p-1.5 hover:bg-red-50 text-red-500 rounded-lg" title="Excluir"><span class="material-symbols-rounded">delete</span></button></div></li>`);
+                    });
                 }
             } catch(e) {}
         }
 
-        // --- BACKUPS ---
-        async function listarBackups() {
-            const lista = document.getElementById('lista-backups');
-            try {
-                const res = await fetch(`${BASE_URL}/api/backups`);
-                const data = await res.json();
-                
-                if(!data.erro && data.dados) {
-                    lista.innerHTML = '';
-                    if(data.dados.length === 0) {
-                        lista.innerHTML = `<li class="p-4 text-center text-slate-400 text-xs">Nenhum backup encontrado.</li>`;
-                        return;
-                    }
-
-                    data.dados.forEach(b => {
-                        const size = (b.tamanho / 1024 / 1024).toFixed(2) + ' MB';
-                        const date = new Date(b.data).toLocaleDateString() + ' ' + new Date(b.data).toLocaleTimeString();
-                        
-                        const html = `
-                            <li class="p-3 flex justify-between items-center hover:bg-white transition group">
-                                <div class="flex items-center gap-3 overflow-hidden">
-                                    <div class="bg-purple-50 text-purple-600 p-2 rounded-lg"><span class="material-symbols-rounded">description</span></div>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-slate-700 truncate" title="${b.nome}">${b.nome}</p>
-                                        <p class="text-[10px] text-slate-500">${date} • ${size}</p>
-                                    </div>
-                                </div>
-                                <div class="flex gap-1 opacity-60 group-hover:opacity-100 transition">
-                                    <a href="${BASE_URL}/api/backups/download/${b.nome}" target="_blank" class="p-1.5 hover:bg-blue-50 text-primary rounded-lg" title="Baixar"><span class="material-symbols-rounded">download</span></a>
-                                    <button onclick="deletarBackup('${b.nome}')" class="p-1.5 hover:bg-red-50 text-red-500 rounded-lg" title="Excluir"><span class="material-symbols-rounded">delete</span></button>
-                                </div>
-                            </li>
-                        `;
-                        lista.insertAdjacentHTML('beforeend', html);
-                    });
-                }
-            } catch(e) { console.error(e); }
+        async function creatingBackup() {
+            const btn = document.getElementById('btn-criar-backup'); btn.disabled = true; btn.innerHTML = `<span class="material-symbols-rounded animate-spin">sync</span> Criando...`;
+            try { const res = await fetch(`${BASE_URL}/api/backups`, {method:'POST'}); const data = await res.json(); if(!data.erro) { showToast("Backup criado!"); listarBackups(); } else showToast("Erro", 'error'); } catch(e) { showToast("Erro", 'error'); } finally { btn.disabled = false; btn.innerHTML = `<span class="material-symbols-rounded text-lg">save</span> Novo Backup`; }
         }
+        // Alias para o botão
+        const criarBackup = creatingBackup; 
 
-        async function criarBackup() {
-            const btn = document.getElementById('btn-criar-backup');
-            btn.disabled = true; btn.innerHTML = `<span class="material-symbols-rounded animate-spin">sync</span> Criando...`;
-            try {
-                const res = await fetch(`${BASE_URL}/api/backups`, {method:'POST'});
-                const data = await res.json();
-                if(!data.erro) { showToast("Backup criado com sucesso!"); listarBackups(); }
-                else showToast("Erro ao criar backup", 'error');
-            } catch(e) { showToast("Erro de conexão", 'error'); }
-            finally { btn.disabled = false; btn.innerHTML = `<span class="material-symbols-rounded text-lg">save</span> Criar Novo Backup`; }
-        }
-
-        async function deletarBackup(arquivo) {
-            if(!confirm("Tem certeza que deseja excluir este backup permanentemente?")) return;
-            try {
-                await fetch(`${BASE_URL}/api/backups/${arquivo}`, {method:'DELETE'});
-                showToast("Backup excluído.");
-                listarBackups();
-            } catch(e) { showToast("Erro ao excluir", 'error'); }
-        }
-
+        async function deletarBackup(f) { if(confirm("Excluir?")) { await fetch(`${BASE_URL}/api/backups/${f}`, {method:'DELETE'}); listarBackups(); } }
+        
         async function restaurarBackup() {
-            if(!confirm("⚠️ PERIGO: Isso irá apagar TODOS os dados atuais e restaurar o backup selecionado. O sistema será reiniciado.\n\nDeseja continuar?")) return;
-            
+            if(!confirm("⚠️ ATENÇÃO: Isso apagará tudo e restaurará o backup. O sistema irá reiniciar.")) return;
             const file = document.getElementById('arquivo-restore').files[0];
-            const formData = new FormData();
-            formData.append('backup', file);
-            
-            const btn = document.getElementById('btn-restaurar');
-            btn.disabled = true; btn.innerHTML = "Restaurando... (Aguarde)";
-
+            const formData = new FormData(); formData.append('backup', file);
+            const btn = document.getElementById('btn-restaurar'); btn.disabled = true; btn.textContent = "Restaurando...";
             try {
                 const res = await fetch(`${BASE_URL}/api/backups/restore`, {method:'POST', body: formData});
                 const data = await res.json();
-                if(!data.erro) {
-                    alert("Backup restaurado com sucesso! O sistema está reiniciando. A página será recarregada.");
-                    setTimeout(() => window.location.reload(), 3000);
-                } else {
-                    showToast(data.mensagem || "Erro na restauração", 'error');
-                    btn.disabled = false; btn.innerHTML = `<span class="material-symbols-rounded text-lg">settings_backup_restore</span> Restaurar Agora`;
-                }
-            } catch(e) { showToast("Erro crítico de conexão", 'error'); btn.disabled = false; }
+                if(!data.erro) { alert("Restaurado! Recarregando..."); setTimeout(() => window.location.reload(), 3000); }
+                else { showToast(data.mensagem, 'error'); btn.disabled = false; btn.textContent = "Restaurar Agora"; }
+            } catch(e) { showToast("Erro crítico", 'error'); btn.disabled = false; }
         }
 
         function showToast(msg, type = 'success') {

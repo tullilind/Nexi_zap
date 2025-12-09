@@ -22,6 +22,7 @@ let nomeDoBotCache = 'NEXI BOT';
 // --- MIDDLEWARES ---
 app.use(cors());
 app.use(bodyParser.json());
+// Correção: era urlData, alterado para urlencoded
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Servir arquivos estáticos
@@ -197,6 +198,40 @@ db.serialize(() => {
         valor INTEGER,
         data DATE DEFAULT (date('now'))
     )`);
+
+    // ========================================================
+    // TABELAS PARA WEBHOOK
+    // ========================================================
+    
+    // Tabela de Webhooks
+    db.run(`CREATE TABLE IF NOT EXISTS webhooks (
+        id TEXT PRIMARY KEY,
+        numero TEXT NOT NULL,
+        mensagem TEXT,
+        tipo_mensagem TEXT DEFAULT 'texto',
+        caminho_arquivo TEXT,
+        nome_arquivo TEXT,
+        mimetype TEXT,
+        status TEXT DEFAULT 'PENDENTE',
+        tentativas INTEGER DEFAULT 0,
+        erro TEXT,
+        data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        data_envio DATETIME,
+        id_mensagem_whatsapp TEXT,
+        metadata TEXT
+    )`);
+
+    // Tabela de Logs de Webhook
+    db.run(`CREATE TABLE IF NOT EXISTS webhooks_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        webhook_id TEXT,
+        status TEXT,
+        mensagem TEXT,
+        data_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (webhook_id) REFERENCES webhooks(id)
+    )`);
+
+    console.log('✅ Tabelas criadas/verificadas com sucesso');
 });
 
 // --- FUNÇÕES AUXILIARES ---
@@ -228,7 +263,6 @@ async function salvarFotoPerfil(numero, urlFoto) {
             return `/media/profile_pics/${nomeArquivo}`;
         }
         
-        // Download da foto de perfil
         const response = await axios.get(urlFoto, { responseType: 'arraybuffer' });
         fs.writeFileSync(caminhoLocal, response.data);
         
@@ -292,6 +326,106 @@ function substituirVariaveis(mensagem, dados, mapeamento) {
     return mensagemFinal;
 }
 
+// Gerar ID único para webhook
+function gerarWebhookId() {
+    return `WH_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// ========================================================
+// FUNÇÕES DE WEBHOOK
+// ========================================================
+
+// Processar fila de webhooks pendentes
+async function processarFilaWebhook() {
+    if (!clientReady) return;
+
+    const sql = `SELECT * FROM webhooks WHERE status IN ('PENDENTE', 'ERRO') AND tentativas < 3 ORDER BY data_criacao ASC LIMIT 10`;
+    
+    db.all(sql, [], async (err, rows) => {
+        if (err || rows.length === 0) return;
+
+        for (const webhook of rows) {
+            await processarWebhook(webhook);
+            await sleep(2000, 4000);
+        }
+    });
+}
+
+// Processar um webhook individual
+async function processarWebhook(webhook) {
+    try {
+        db.run(`UPDATE webhooks SET tentativas = tentativas + 1 WHERE id = ?`, [webhook.id]);
+        
+        db.run(`INSERT INTO webhooks_log (webhook_id, status, mensagem) VALUES (?, 'PROCESSANDO', 'Iniciando envio')`, 
+               [webhook.id]);
+
+        let numFormatado = webhook.numero.replace(/\D/g, '');
+        if (numFormatado.length >= 10 && !numFormatado.startsWith('55')) {
+            numFormatado = '55' + numFormatado;
+        }
+        const idZap = numFormatado + '@c.us';
+
+        let msgEnviada = null;
+
+        if (webhook.tipo_mensagem === 'texto' || !webhook.caminho_arquivo) {
+            msgEnviada = await client.sendMessage(idZap, webhook.mensagem || '');
+            
+        } else if (webhook.caminho_arquivo && fs.existsSync(webhook.caminho_arquivo)) {
+            const media = MessageMedia.fromFilePath(webhook.caminho_arquivo);
+            
+            if (webhook.tipo_mensagem === 'audio') {
+                msgEnviada = await client.sendMessage(idZap, media, { sendAudioAsVoice: true });
+                if (webhook.mensagem) {
+                    await client.sendMessage(idZap, webhook.mensagem);
+                }
+            } else {
+                msgEnviada = await client.sendMessage(idZap, media, { 
+                    caption: webhook.mensagem || '' 
+                });
+            }
+        } else {
+            throw new Error('Arquivo de mídia não encontrado');
+        }
+
+        db.run(`UPDATE webhooks SET 
+                status = 'ENVIADO', 
+                data_envio = CURRENT_TIMESTAMP,
+                id_mensagem_whatsapp = ?,
+                erro = NULL
+                WHERE id = ?`, 
+               [msgEnviada?.id?._serialized || null, webhook.id]);
+
+        db.run(`INSERT INTO webhooks_log (webhook_id, status, mensagem) VALUES (?, 'SUCESSO', 'Mensagem enviada com sucesso')`, 
+               [webhook.id]);
+
+        db.run(`INSERT INTO historico_mensagens 
+                (remetente, destinatario, mensagem, tipo, tipo_arquivo, caminho_arquivo, nome_arquivo, mimetype, lida, id_mensagem_whatsapp) 
+                VALUES ('BOT', ?, ?, 'ENVIADA', ?, ?, ?, ?, 1, ?)`,
+               [numFormatado, webhook.mensagem, webhook.tipo_mensagem, 
+                webhook.caminho_arquivo, webhook.nome_arquivo, webhook.mimetype,
+                msgEnviada?.id?._serialized || null]);
+
+        db.run(`UPDATE contatos SET ultima_interacao = CURRENT_TIMESTAMP WHERE numero = ?`, [numFormatado]);
+        db.run(`INSERT INTO estatisticas (tipo, valor) VALUES ('webhooks_enviados', 1)`);
+
+        console.log(`✅ Webhook ${webhook.id} enviado para ${numFormatado}`);
+
+    } catch (error) {
+        console.error(`❌ Erro ao processar webhook ${webhook.id}:`, error.message);
+        
+        const novoStatus = webhook.tentativas >= 2 ? 'FALHOU' : 'ERRO';
+        
+        db.run(`UPDATE webhooks SET status = ?, erro = ? WHERE id = ?`, 
+               [novoStatus, error.message, webhook.id]);
+
+        db.run(`INSERT INTO webhooks_log (webhook_id, status, mensagem) VALUES (?, 'ERRO', ?)`, 
+               [webhook.id, error.message]);
+    }
+}
+
+// Iniciar processamento da fila a cada 10 segundos
+setInterval(processarFilaWebhook, 10000);
+
 // ========================================================
 // CLIENTE WHATSAPP
 // ========================================================
@@ -349,7 +483,6 @@ client.on('message', async msg => {
         console.error('Erro ao obter contato:', e);
     }
 
-    // Salva/Atualiza Contato
     db.run(`INSERT INTO contatos (numero, nome, url_foto, caminho_foto_local, ultima_interacao) 
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(numero) DO UPDATE SET 
@@ -359,7 +492,6 @@ client.on('message', async msg => {
                 ultima_interacao=CURRENT_TIMESTAMP`, 
             [numeroCliente, nomeContato, urlFoto, caminhoFotoLocal]);
 
-    // Processa mídia se houver
     let tipoMsg = 'texto';
     let dadosMidia = null;
     
@@ -379,7 +511,6 @@ client.on('message', async msg => {
         }
     }
 
-    // Salva Mensagem no Histórico (nova mensagem não lida)
     db.run(`INSERT INTO historico_mensagens 
             (remetente, destinatario, mensagem, tipo, tipo_arquivo, caminho_arquivo, nome_arquivo, tamanho_arquivo, mimetype, lida, id_mensagem_whatsapp) 
             VALUES (?, 'BOT', ?, 'RECEBIDA', ?, ?, ?, ?, ?, 0, ?)`, 
@@ -388,10 +519,8 @@ client.on('message', async msg => {
 
     console.log(`📩 De ${numeroCliente}: ${texto} ${msg.hasMedia ? '[COM MÍDIA]' : ''}`);
 
-    // Atualizar estatísticas
     db.run(`INSERT INTO estatisticas (tipo, valor) VALUES ('mensagens_recebidas', 1)`);
 
-    // Auto-Resposta
     db.all(`SELECT * FROM auto_respostas WHERE ativo = 1`, [], async (err, rows) => {
         if (err) return;
         const regra = rows.find(r => texto.toLowerCase().includes(r.gatilho.toLowerCase()));
@@ -433,7 +562,7 @@ client.on('message', async msg => {
 client.initialize();
 
 // ========================================================
-// AGENDADOR DE CAMPANHAS MELHORADO
+// AGENDADOR DE CAMPANHAS
 // ========================================================
 setInterval(() => {
     if (!clientReady) return;
@@ -491,7 +620,6 @@ async function processarCampanha(campanha) {
             let num = String(numBruto).replace(/\D/g, '');
             if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
             
-            // Substituir variáveis
             const mensagemPersonalizada = substituirVariaveis(
                 campanha.mensagem_base, 
                 linha, 
@@ -499,7 +627,6 @@ async function processarCampanha(campanha) {
             );
             const msgFinal = `${mensagemPersonalizada}\n\n🤖 *${nomeDoBotCache}*`;
 
-            // Enviar com mídia se configurado
             if (campanha.caminho_media && fs.existsSync(campanha.caminho_media)) {
                 const media = MessageMedia.fromFilePath(campanha.caminho_media);
                 await client.sendMessage(num + '@c.us', media, { caption: msgFinal });
@@ -534,10 +661,365 @@ async function processarCampanha(campanha) {
 }
 
 // ========================================================
-// APIs DE CHAT E CONTATOS MELHORADAS
+// APIs DE WEBHOOK
 // ========================================================
 
-// Listar Contatos com foto, categoria e status
+/**
+ * POST /api/webhook/enviar
+ * Envia mensagens via webhook com suporte a múltiplos formatos
+ */
+app.post('/api/webhook/enviar', upload.single('arquivo'), async (req, res) => {
+    try {
+        const { numero, mensagem, metadata } = req.body;
+        
+        if (!numero) {
+            return res.status(400).json({ 
+                erro: true, 
+                mensagem: 'Número é obrigatório' 
+            });
+        }
+
+        const webhookId = gerarWebhookId();
+
+        let tipoMensagem = 'texto';
+        let caminhoArquivo = null;
+        let nomeArquivo = null;
+        let mimetype = null;
+
+        if (req.file) {
+            caminhoArquivo = req.file.path;
+            nomeArquivo = req.file.filename;
+            mimetype = req.file.mimetype;
+            tipoMensagem = getTipoArquivo(mimetype);
+        }
+
+        db.run(`INSERT INTO webhooks 
+                (id, numero, mensagem, tipo_mensagem, caminho_arquivo, nome_arquivo, mimetype, metadata) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+               [webhookId, numero, mensagem, tipoMensagem, caminhoArquivo, nomeArquivo, mimetype, metadata],
+               function(err) {
+                   if (err) {
+                       console.error('Erro ao criar webhook:', err);
+                       return res.status(500).json({ erro: true, mensagem: err.message });
+                   }
+
+                   db.run(`INSERT INTO webhooks_log (webhook_id, status, mensagem) VALUES (?, 'CRIADO', 'Webhook criado e adicionado à fila')`,
+                          [webhookId]);
+
+                   res.json({
+                       erro: false,
+                       mensagem: 'Webhook criado com sucesso',
+                       dados: {
+                           id: webhookId,
+                           status: 'PENDENTE',
+                           numero: numero,
+                           tipo_mensagem: tipoMensagem,
+                           arquivo: req.file ? {
+                               nome: nomeArquivo,
+                               tipo: tipoMensagem,
+                               tamanho: req.file.size
+                           } : null,
+                           data_criacao: new Date().toISOString()
+                       }
+                   });
+               });
+
+    } catch (error) {
+        console.error('Erro ao processar webhook:', error);
+        res.status(500).json({ erro: true, mensagem: error.message });
+    }
+});
+
+/**
+ * GET /api/webhook/status/:id
+ * Consulta o status de um webhook específico
+ */
+app.get('/api/webhook/status/:id', (req, res) => {
+    const webhookId = req.params.id;
+
+    const sql = `SELECT 
+                    w.*,
+                    (SELECT COUNT(*) FROM webhooks_log WHERE webhook_id = w.id) as total_logs
+                 FROM webhooks w
+                 WHERE w.id = ?`;
+
+    db.get(sql, [webhookId], (err, webhook) => {
+        if (err) {
+            return res.status(500).json({ erro: true, mensagem: err.message });
+        }
+
+        if (!webhook) {
+            return res.status(404).json({ 
+                erro: true, 
+                mensagem: 'Webhook não encontrado' 
+            });
+        }
+
+        db.all(`SELECT * FROM webhooks_log WHERE webhook_id = ? ORDER BY data_hora DESC`, 
+               [webhookId], 
+               (err, logs) => {
+            res.json({
+                erro: false,
+                dados: {
+                    id: webhook.id,
+                    numero: webhook.numero,
+                    mensagem: webhook.mensagem,
+                    tipo_mensagem: webhook.tipo_mensagem,
+                    status: webhook.status,
+                    tentativas: webhook.tentativas,
+                    erro: webhook.erro,
+                    data_criacao: webhook.data_criacao,
+                    data_envio: webhook.data_envio,
+                    id_mensagem_whatsapp: webhook.id_mensagem_whatsapp,
+                    metadata: webhook.metadata,
+                    arquivo: webhook.caminho_arquivo ? {
+                        caminho: webhook.caminho_arquivo,
+                        nome: webhook.nome_arquivo,
+                        mimetype: webhook.mimetype
+                    } : null,
+                    logs: logs || []
+                }
+            });
+        });
+    });
+});
+
+/**
+ * GET /api/webhook/historico
+ * Lista o histórico completo de webhooks com filtros
+ */
+app.get('/api/webhook/historico', (req, res) => {
+    const { 
+        status, 
+        numero, 
+        data_inicio, 
+        data_fim, 
+        tipo_mensagem,
+        limit = 100,
+        offset = 0 
+    } = req.query;
+
+    let sql = `SELECT 
+                    w.*,
+                    (SELECT COUNT(*) FROM webhooks_log WHERE webhook_id = w.id) as total_logs
+                FROM webhooks w
+                WHERE 1=1`;
+    
+    const params = [];
+
+    if (status) {
+        sql += ` AND w.status = ?`;
+        params.push(status);
+    }
+
+    if (numero) {
+        sql += ` AND w.numero LIKE ?`;
+        params.push(`%${numero}%`);
+    }
+
+    if (data_inicio) {
+        sql += ` AND DATE(w.data_criacao) >= ?`;
+        params.push(data_inicio);
+    }
+
+    if (data_fim) {
+        sql += ` AND DATE(w.data_criacao) <= ?`;
+        params.push(data_fim);
+    }
+
+    if (tipo_mensagem) {
+        sql += ` AND w.tipo_mensagem = ?`;
+        params.push(tipo_mensagem);
+    }
+
+    sql += ` ORDER BY w.data_criacao DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    let sqlCount = `SELECT COUNT(*) as total FROM webhooks w WHERE 1=1`;
+    const paramsCount = params.slice(0, -2);
+
+    if (status) sqlCount += ` AND w.status = ?`;
+    if (numero) sqlCount += ` AND w.numero LIKE ?`;
+    if (data_inicio) sqlCount += ` AND DATE(w.data_criacao) >= ?`;
+    if (data_fim) sqlCount += ` AND DATE(w.data_criacao) <= ?`;
+    if (tipo_mensagem) sqlCount += ` AND w.tipo_mensagem = ?`;
+
+    db.get(sqlCount, paramsCount, (err, countResult) => {
+        if (err) {
+            return res.status(500).json({ erro: true, mensagem: err.message });
+        }
+
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                return res.status(500).json({ erro: true, mensagem: err.message });
+            }
+
+            const stats = {
+                pendentes: rows.filter(w => w.status === 'PENDENTE').length,
+                enviados: rows.filter(w => w.status === 'ENVIADO').length,
+                erros: rows.filter(w => w.status === 'ERRO').length,
+                falhou: rows.filter(w => w.status === 'FALHOU').length
+            };
+
+            res.json({
+                erro: false,
+                total: countResult.total,
+                limit: parseInt(limit),
+                offset: parseInt(offset),
+                estatisticas: stats,
+                dados: rows.map(w => ({
+                    id: w.id,
+                    numero: w.numero,
+                    mensagem: w.mensagem ? w.mensagem.substring(0, 100) + (w.mensagem.length > 100 ? '...' : '') : null,
+                    tipo_mensagem: w.tipo_mensagem,
+                    status: w.status,
+                    tentativas: w.tentativas,
+                    erro: w.erro,
+                    data_criacao: w.data_criacao,
+                    data_envio: w.data_envio,
+                    metadata: w.metadata,
+                    tem_arquivo: w.caminho_arquivo ? true : false,
+                    total_logs: w.total_logs
+                }))
+            });
+        });
+    });
+});
+
+/**
+ * DELETE /api/webhook/:id
+ * Remove um webhook da fila
+ */
+app.delete('/api/webhook/:id', (req, res) => {
+    const webhookId = req.params.id;
+
+    db.get(`SELECT status, caminho_arquivo FROM webhooks WHERE id = ?`, [webhookId], (err, webhook) => {
+        if (err) {
+            return res.status(500).json({ erro: true, mensagem: err.message });
+        }
+
+        if (!webhook) {
+            return res.status(404).json({ erro: true, mensagem: 'Webhook não encontrado' });
+        }
+
+        if (webhook.status === 'ENVIADO') {
+            return res.status(400).json({ erro: true, mensagem: 'Não é possível deletar webhook já enviado' });
+        }
+
+        if (webhook.caminho_arquivo && fs.existsSync(webhook.caminho_arquivo)) {
+            try {
+                fs.unlinkSync(webhook.caminho_arquivo);
+            } catch (e) {
+                console.error('Erro ao deletar arquivo:', e);
+            }
+        }
+
+        db.run(`DELETE FROM webhooks_log WHERE webhook_id = ?`, [webhookId], () => {
+            db.run(`DELETE FROM webhooks WHERE id = ?`, [webhookId], (err) => {
+                if (err) {
+                    return res.status(500).json({ erro: true, mensagem: err.message });
+                }
+                res.json({ erro: false, mensagem: 'Webhook deletado com sucesso' });
+            });
+        });
+    });
+});
+
+/**
+ * PUT /api/webhook/:id/retentar
+ * Retentar envio de um webhook com erro
+ */
+app.put('/api/webhook/:id/retentar', (req, res) => {
+    const webhookId = req.params.id;
+
+    db.run(`UPDATE webhooks 
+            SET status = 'PENDENTE', tentativas = 0, erro = NULL 
+            WHERE id = ? AND status IN ('ERRO', 'FALHOU')`,
+           [webhookId],
+           function(err) {
+        if (err) {
+            return res.status(500).json({ erro: true, mensagem: err.message });
+        }
+
+        if (this.changes === 0) {
+            return res.status(400).json({ 
+                erro: true, 
+                mensagem: 'Webhook não encontrado ou não está em estado de erro' 
+            });
+        }
+
+        db.run(`INSERT INTO webhooks_log (webhook_id, status, mensagem) VALUES (?, 'RETENTATIVA', 'Webhook marcado para retentativa')`,
+               [webhookId]);
+
+        res.json({ erro: false, mensagem: 'Webhook marcado para retentativa' });
+    });
+});
+
+/**
+ * GET /api/webhook/estatisticas
+ * Estatísticas gerais de webhooks
+ */
+app.get('/api/webhook/estatisticas', (req, res) => {
+    const { periodo = 7 } = req.query;
+
+    const queries = {
+        total: `SELECT COUNT(*) as total FROM webhooks`,
+        pendentes: `SELECT COUNT(*) as total FROM webhooks WHERE status = 'PENDENTE'`,
+        enviados: `SELECT COUNT(*) as total FROM webhooks WHERE status = 'ENVIADO'`,
+        erros: `SELECT COUNT(*) as total FROM webhooks WHERE status IN ('ERRO', 'FALHOU')`,
+        hoje: `SELECT COUNT(*) as total FROM webhooks WHERE DATE(data_criacao) = DATE('now')`,
+        periodo: `SELECT COUNT(*) as total FROM webhooks WHERE data_criacao >= datetime('now', '-${periodo} days')`,
+        porTipo: `SELECT tipo_mensagem, COUNT(*) as total FROM webhooks GROUP BY tipo_mensagem`,
+        porStatus: `SELECT status, COUNT(*) as total FROM webhooks GROUP BY status`,
+        ultimosEnvios: `SELECT DATE(data_envio) as data, COUNT(*) as total 
+                        FROM webhooks 
+                        WHERE data_envio IS NOT NULL 
+                        AND data_envio >= datetime('now', '-${periodo} days')
+                        GROUP BY DATE(data_envio)
+                        ORDER BY data DESC`
+    };
+
+    const resultados = {};
+    let contador = 0;
+    const totalQueries = Object.keys(queries).length - 2;
+
+    ['total', 'pendentes', 'enviados', 'erros', 'hoje', 'periodo'].forEach(key => {
+        db.get(queries[key], [], (err, row) => {
+            resultados[key] = row ? row.total : 0;
+            contador++;
+            verificarConclusao();
+        });
+    });
+
+    db.all(queries.porTipo, [], (err, rows) => {
+        resultados.porTipo = rows || [];
+        contador++;
+        verificarConclusao();
+    });
+
+    db.all(queries.porStatus, [], (err, rows) => {
+        resultados.porStatus = rows || [];
+        contador++;
+        verificarConclusao();
+    });
+
+    db.all(queries.ultimosEnvios, [], (err, rows) => {
+        resultados.ultimosEnvios = rows || [];
+        contador++;
+        verificarConclusao();
+    });
+
+    function verificarConclusao() {
+        if (contador === totalQueries + 3) {
+            res.json({ erro: false, dados: resultados });
+        }
+    }
+});
+
+// ========================================================
+// APIs DE CHAT E CONTATOS
+// ========================================================
+
 app.get('/api/chat/contatos', (req, res) => {
     const { categoria, busca, bloqueados } = req.query;
     
@@ -575,7 +1057,6 @@ app.get('/api/chat/contatos', (req, res) => {
     });
 });
 
-// Conversa específica com mensagens não lidas
 app.get('/api/chat/mensagens/:numero', (req, res) => {
     const numero = req.params.numero;
     const sql = `SELECT 
@@ -589,14 +1070,11 @@ app.get('/api/chat/mensagens/:numero', (req, res) => {
                 ORDER BY h.data_hora ASC`;
     
     db.all(sql, [numero, numero, numero], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ erro: true, mensagem: err.message });
-        }
+        if (err) return res.status(500).json({ erro: true, mensagem: err.message });
         res.json({ erro: false, dados: rows });
     });
 });
 
-// Marcar mensagens como lidas
 app.post('/api/chat/marcar-lidas/:numero', (req, res) => {
     const numero = req.params.numero;
     
@@ -610,7 +1088,6 @@ app.post('/api/chat/marcar-lidas/:numero', (req, res) => {
     });
 });
 
-// Buscar contato completo
 app.get('/api/chat/contato/:numero', (req, res) => {
     const numero = req.params.numero;
     const sql = `SELECT 
@@ -631,7 +1108,6 @@ app.get('/api/chat/contato/:numero', (req, res) => {
     });
 });
 
-// Atualizar categoria do contato
 app.put('/api/chat/contato/:numero/categoria', (req, res) => {
     const numero = req.params.numero;
     const { categoria_id } = req.body;
@@ -644,7 +1120,6 @@ app.put('/api/chat/contato/:numero/categoria', (req, res) => {
     });
 });
 
-// Bloquear/Desbloquear contato
 app.put('/api/chat/contato/:numero/bloquear', (req, res) => {
     const numero = req.params.numero;
     const { bloqueado } = req.body;
@@ -657,7 +1132,6 @@ app.put('/api/chat/contato/:numero/bloquear', (req, res) => {
     });
 });
 
-// Atualizar notas do contato
 app.put('/api/chat/contato/:numero/notas', (req, res) => {
     const numero = req.params.numero;
     const { notas } = req.body;
@@ -670,13 +1144,11 @@ app.put('/api/chat/contato/:numero/notas', (req, res) => {
     });
 });
 
-// Envio Manual com mídias
 app.post('/api/chat/enviar', upload.single('arquivo'), async (req, res) => {
     const { numero, mensagem } = req.body;
     
     if (!clientReady) return res.status(500).json({ erro: true, mensagem: "Bot Offline" });
 
-    // Verificar se contato está bloqueado
     const contato = await new Promise((resolve) => {
         db.get(`SELECT bloqueado FROM contatos WHERE numero = ?`, [numero.replace(/\D/g, '')], (err, row) => {
             resolve(row);
@@ -729,7 +1201,6 @@ app.post('/api/chat/enviar', upload.single('arquivo'), async (req, res) => {
     }
 });
 
-// Arquivar mensagem
 app.put('/api/chat/mensagem/:id/arquivar', (req, res) => {
     const { id } = req.params;
     const { arquivada } = req.body;
@@ -742,7 +1213,6 @@ app.put('/api/chat/mensagem/:id/arquivar', (req, res) => {
     });
 });
 
-// Deletar mensagem
 app.delete('/api/chat/mensagem/:id', (req, res) => {
     const { id } = req.params;
     
@@ -754,7 +1224,6 @@ app.delete('/api/chat/mensagem/:id', (req, res) => {
     });
 });
 
-// Fixar mensagem
 app.post('/api/chat/mensagem/:id/fixar', (req, res) => {
     const { id } = req.params;
     const { numero_contato } = req.body;
@@ -767,7 +1236,6 @@ app.post('/api/chat/mensagem/:id/fixar', (req, res) => {
     });
 });
 
-// Desfixar mensagem
 app.delete('/api/chat/mensagem/:id/fixar', (req, res) => {
     const { id } = req.params;
     
@@ -779,7 +1247,6 @@ app.delete('/api/chat/mensagem/:id/fixar', (req, res) => {
     });
 });
 
-// Buscar mensagens não lidas (contador geral)
 app.get('/api/chat/nao-lidas', (req, res) => {
     const sql = `SELECT 
                     c.numero, c.nome, c.caminho_foto_local,
@@ -807,7 +1274,6 @@ app.get('/api/chat/nao-lidas', (req, res) => {
 // APIs DE CATEGORIAS
 // ========================================================
 
-// Listar categorias
 app.get('/api/categorias', (req, res) => {
     db.all(`SELECT 
                 c.*, 
@@ -822,7 +1288,6 @@ app.get('/api/categorias', (req, res) => {
     });
 });
 
-// Criar categoria
 app.post('/api/categorias', (req, res) => {
     const { nome, cor, icone, ordem } = req.body;
     
@@ -834,7 +1299,6 @@ app.post('/api/categorias', (req, res) => {
     });
 });
 
-// Atualizar categoria
 app.put('/api/categorias/:id', (req, res) => {
     const { id } = req.params;
     const { nome, cor, icone, ordem } = req.body;
@@ -847,11 +1311,9 @@ app.put('/api/categorias/:id', (req, res) => {
     });
 });
 
-// Deletar categoria
 app.delete('/api/categorias/:id', (req, res) => {
     const { id } = req.params;
     
-    // Não permitir deletar categorias padrão
     if (id <= 5) {
         return res.status(400).json({ erro: true, mensagem: 'Não é possível deletar categorias padrão' });
     }
@@ -865,7 +1327,7 @@ app.delete('/api/categorias/:id', (req, res) => {
 });
 
 // ========================================================
-// API DE RESPOSTAS RÁPIDAS MELHORADA
+// APIs DE RESPOSTAS RÁPIDAS
 // ========================================================
 
 app.get('/api/respostas-rapidas', (req, res) => {
@@ -906,10 +1368,9 @@ app.delete('/api/respostas-rapidas/:id', (req, res) => {
 });
 
 // ========================================================
-// API DE CAMPANHAS MELHORADA
+// APIs DE CAMPANHAS
 // ========================================================
 
-// Analisar arquivo e retornar colunas disponíveis
 app.post('/api/campanhas/analisar-arquivo', upload.single('arquivo'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ erro: true, mensagem: "Arquivo não enviado" });
@@ -924,9 +1385,8 @@ app.post('/api/campanhas/analisar-arquivo', upload.single('arquivo'), (req, res)
             return res.status(400).json({ erro: true, mensagem: "Arquivo vazio" });
         }
 
-        // Pegar as colunas do primeiro registro
         const colunas = Object.keys(dados[0]);
-        const preview = dados.slice(0, 3); // Preview de 3 linhas
+        const preview = dados.slice(0, 3);
         
         res.json({
             erro: false,
@@ -942,7 +1402,6 @@ app.post('/api/campanhas/analisar-arquivo', upload.single('arquivo'), (req, res)
     }
 });
 
-// Criar campanha com variáveis
 app.post('/api/campanhas/criar', upload.single('media'), (req, res) => {
     const { 
         nome, 
@@ -967,7 +1426,6 @@ app.post('/api/campanhas/criar', upload.single('media'), (req, res) => {
         tipoMedia = getTipoArquivo(req.file.mimetype);
     }
 
-    // Contar total de números
     let total = 0;
     try {
         const caminhoArquivo = path.join(uploadsFolder, nome_arquivo);
@@ -995,7 +1453,6 @@ app.post('/api/campanhas/criar', upload.single('media'), (req, res) => {
     );
 });
 
-// Listar campanhas
 app.get('/api/campanhas', (req, res) => {
     db.all(`SELECT 
                 c.*,
@@ -1008,7 +1465,6 @@ app.get('/api/campanhas', (req, res) => {
     });
 });
 
-// Buscar campanha específica
 app.get('/api/campanhas/:id', (req, res) => {
     const { id } = req.params;
     
@@ -1019,7 +1475,6 @@ app.get('/api/campanhas/:id', (req, res) => {
     });
 });
 
-// Log da campanha
 app.get('/api/campanhas/:id/log', (req, res) => {
     const { id } = req.params;
     
@@ -1031,7 +1486,6 @@ app.get('/api/campanhas/:id/log', (req, res) => {
     });
 });
 
-// Pausar campanha
 app.put('/api/campanhas/:id/pausar', (req, res) => {
     const { id } = req.params;
     
@@ -1043,13 +1497,11 @@ app.put('/api/campanhas/:id/pausar', (req, res) => {
     });
 });
 
-// Deletar campanha
 app.delete('/api/campanhas/:id', (req, res) => {
     const { id } = req.params;
     
     db.get(`SELECT nome_arquivo, caminho_media FROM campanhas WHERE id = ?`, [id], (err, row) => {
         if (row) {
-            // Deletar arquivos
             try {
                 if (row.nome_arquivo) {
                     const caminho = path.join(uploadsFolder, row.nome_arquivo);
@@ -1063,7 +1515,6 @@ app.delete('/api/campanhas/:id', (req, res) => {
             }
         }
         
-        // Deletar logs
         db.run(`DELETE FROM campanhas_log WHERE campanha_id = ?`, [id], () => {
             db.run(`DELETE FROM campanhas WHERE id = ?`, [id], (err) => {
                 if (err) return res.status(500).json({ erro: true, mensagem: err.message });
@@ -1074,7 +1525,7 @@ app.delete('/api/campanhas/:id', (req, res) => {
 });
 
 // ========================================================
-// API DE ESTATÍSTICAS
+// APIs DE ESTATÍSTICAS
 // ========================================================
 
 app.get('/api/estatisticas/dashboard', (req, res) => {
@@ -1088,7 +1539,9 @@ app.get('/api/estatisticas/dashboard', (req, res) => {
         contatosBloqueados: `SELECT COUNT(*) as total FROM contatos WHERE bloqueado = 1`,
         campanhasAtivas: `SELECT COUNT(*) as total FROM campanhas WHERE status IN ('AGENDADO', 'PROCESSANDO')`,
         campanhasConcluidas: `SELECT COUNT(*) as total FROM campanhas WHERE status = 'CONCLUIDO'`,
-        naoLidas: `SELECT COUNT(*) as total FROM historico_mensagens WHERE lida = 0 AND tipo = 'RECEBIDA'`
+        naoLidas: `SELECT COUNT(*) as total FROM historico_mensagens WHERE lida = 0 AND tipo = 'RECEBIDA'`,
+        webhooksPendentes: `SELECT COUNT(*) as total FROM webhooks WHERE status = 'PENDENTE'`,
+        webhooksEnviados: `SELECT COUNT(*) as total FROM webhooks WHERE status = 'ENVIADO'`
     };
     
     const resultados = {};
@@ -1108,7 +1561,6 @@ app.get('/api/estatisticas/dashboard', (req, res) => {
     });
 });
 
-// Estatísticas por período
 app.get('/api/estatisticas/periodo', (req, res) => {
     const { dias = 7 } = req.query;
     
@@ -1128,7 +1580,7 @@ app.get('/api/estatisticas/periodo', (req, res) => {
 });
 
 // ========================================================
-// ROTAS DE WHATSAPP
+// APIs DE WHATSAPP
 // ========================================================
 
 app.get('/api/whatsapp/historico', (req, res) => {
@@ -1451,8 +1903,8 @@ app.delete('/api/usuarios/:id', (req, res) => {
 app.get('/api/health', (req, res) => {
     res.json({
         erro: false,
-        sistema: 'NEXI CRM 2.0',
-        versao: '2.0.0',
+        sistema: 'NEXI CRM 2.0 (Webhooks)',
+        versao: '2.1.0',
         status: 'online',
         whatsapp: {
             status: whatsappStatus,
@@ -1482,7 +1934,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════╗
-║         🚀 NEXI CRM 2.0 - SISTEMA COMPLETO           ║
+║         🚀 NEXI CRM 2.1 - COM WEBHOOKS               ║
 ╠═══════════════════════════════════════════════════════╣
 ║  📡 Porta: ${PORT}                                     ║
 ║  💾 Banco: ${dbPath}                                   ║
@@ -1498,6 +1950,7 @@ app.listen(PORT, () => {
 ║  ✅ Backup e Restauração                             ║
 ║  ✅ Auto-Respostas com Mídia                         ║
 ║  ✅ Respostas Rápidas                                ║
+║  ✅ Webhooks API (Novo!)                             ║
 ╠═══════════════════════════════════════════════════════╣
 ║  📸 Fotos: /media/profile_pics/                      ║
 ║  📎 Mídias: /media/                                   ║
@@ -1522,13 +1975,14 @@ app.listen(PORT, () => {
     console.log('   GET    /api/chat/nao-lidas');
     console.log('   POST   /api/chat/enviar');
     console.log('   POST   /api/chat/marcar-lidas/:numero');
-    console.log('   PUT    /api/chat/contato/:numero/categoria');
-    console.log('   PUT    /api/chat/contato/:numero/bloquear');
-    console.log('   PUT    /api/chat/contato/:numero/notas');
-    console.log('   PUT    /api/chat/mensagem/:id/arquivar');
-    console.log('   POST   /api/chat/mensagem/:id/fixar');
-    console.log('   DELETE /api/chat/mensagem/:id');
-    console.log('   DELETE /api/chat/mensagem/:id/fixar');
+    console.log('');
+    console.log('🔗 Webhooks (Novo):');
+    console.log('   POST   /api/webhook/enviar');
+    console.log('   GET    /api/webhook/status/:id');
+    console.log('   GET    /api/webhook/historico');
+    console.log('   DELETE /api/webhook/:id');
+    console.log('   PUT    /api/webhook/:id/retentar');
+    console.log('   GET    /api/webhook/estatisticas');
     console.log('');
     console.log('📁 Categorias:');
     console.log('   GET    /api/categorias');
@@ -1540,22 +1994,16 @@ app.listen(PORT, () => {
     console.log('   POST   /api/campanhas/analisar-arquivo');
     console.log('   POST   /api/campanhas/criar');
     console.log('   GET    /api/campanhas');
-    console.log('   GET    /api/campanhas/:id');
     console.log('   GET    /api/campanhas/:id/log');
     console.log('   PUT    /api/campanhas/:id/pausar');
-    console.log('   DELETE /api/campanhas/:id');
     console.log('');
     console.log('⚡ Respostas Rápidas:');
     console.log('   GET    /api/respostas-rapidas');
     console.log('   POST   /api/respostas-rapidas');
-    console.log('   PUT    /api/respostas-rapidas/:id');
-    console.log('   DELETE /api/respostas-rapidas/:id');
     console.log('');
     console.log('🤖 Auto-Respostas:');
     console.log('   GET    /api/mensagens');
     console.log('   POST   /api/mensagens');
-    console.log('   PUT    /api/mensagens/:id');
-    console.log('   DELETE /api/mensagens/:id');
     console.log('');
     console.log('📊 Estatísticas:');
     console.log('   GET    /api/estatisticas/dashboard');
@@ -1564,15 +2012,12 @@ app.listen(PORT, () => {
     console.log('📱 WhatsApp:');
     console.log('   GET    /api/whatsapp/status');
     console.log('   GET    /api/whatsapp/qr');
-    console.log('   GET    /api/whatsapp/historico');
     console.log('   POST   /api/whatsapp/enviar');
     console.log('');
     console.log('💾 Backups:');
     console.log('   GET    /api/backups');
     console.log('   POST   /api/backups');
-    console.log('   GET    /api/backups/download/:arquivo');
     console.log('   POST   /api/backups/restore');
-    console.log('   DELETE /api/backups/:arquivo');
     console.log('');
     console.log('⚙️  Configurações:');
     console.log('   GET    /api/config/nome');
