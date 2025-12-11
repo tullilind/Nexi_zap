@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  nexi_sistema:
+    container_name: nexi_sistema
+    build: .
+    ports:
+      - "40001:40001"
+    volumes:
+      # Banco de dados SQLite preservado fora do container
+      - ./bancodados:/app/bancodados
+
+      # Pasta para uploads / imagens / mídias
+      - ./uploads:/app/uploads
+    restart: always
+    environment:
+      TZ: "America/Sao_Paulo"
