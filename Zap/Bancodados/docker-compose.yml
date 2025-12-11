@@ -7,10 +7,10 @@ services:
     ports:
       - "40001:40001"
     volumes:
-      # Banco de dados SQLite preservado fora do container
-      - ./bancodados:/app/bancodados
+      # Banco de dados
+      - ./Bancodados:/app/Bancodados
 
-      # Pasta para uploads / imagens / mídias
+      # Uploads, fotos, mídias
       - ./uploads:/app/uploads
     restart: always
     environment:
