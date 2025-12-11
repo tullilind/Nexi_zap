@@ -1,1 +1,22 @@
-
+{
+  "name": "nexi-zap",
+  "version": "1.0.0",
+  "description": "Sistema Nexi - Artificial Ribeiro",
+  "main": "apis.js",
+  "scripts": {
+    "start": "node apis.js",
+    "dev": "nodemon apis.js"
+  },
+  "author": "Joao Vitor",
+  "dependencies": {
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.6",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "whatsapp-web.js": "^1.24.1",
+    "qrcode-terminal": "^0.12.0",
+    "multer": "^1.4.5",
+    "xlsx": "^0.19.3",
+    "axios": "^1.6.7"
+  }
+}
