@@ -11,7 +11,7 @@ const xlsx = require('xlsx');
 const axios = require('axios');
 
 const app = express();
-const PORT = 30003;
+const PORT = 3000;
 
 // --- VARIÁVEIS GLOBAIS ---
 let whatsappStatus = 'INICIANDO';
@@ -2024,4 +2024,5 @@ app.listen(PORT, () => {
     console.log('   POST   /api/config/nome');
     console.log('   GET    /api/health');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
 });
