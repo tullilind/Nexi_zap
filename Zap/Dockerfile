@@ -1,11 +1,12 @@
 FROM node:18-alpine
 
-WORKDIR /app
+# O código REAL está dentro da pasta Zap
+WORKDIR /app/Zap
 
-# Copia TUDO que veio no contexto
-COPY . .
+# Copia tudo para dentro de /app
+COPY . /app
 
-# Instala dependências (package.json já está no contexto)
+# Agora o package.json EXISTE neste diretório
 RUN npm install --omit=dev
 
 ENV NODE_ENV=production
